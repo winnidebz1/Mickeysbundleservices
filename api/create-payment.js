@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
         // Validate phone number format (Ghana format: 10 digits starting with 0)
         const phoneRegex = /^0[0-9]{9}$/;
-        if (!paymentPhone.test(paymentPhone)) {
+        if (!phoneRegex.test(paymentPhone)) {
             return res.status(400).json({ error: 'Invalid payment phone number format' });
         }
         if (!phoneRegex.test(recipientPhone)) {
