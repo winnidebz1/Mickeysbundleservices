@@ -446,6 +446,8 @@ body {
     cursor: pointer;
     transition: all var(--transition-base);
     border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
 }
 
 .network-card:hover {
@@ -467,6 +469,11 @@ body {
 
 .network-card-inner {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    align-items: center;
+    width: 100%;
 }
 
 .network-logo {
@@ -495,7 +502,7 @@ body {
 
 .btn-network {
     width: 100%;
-    margin-top: var(--spacing-md);
+    margin-top: auto;
 }
 
 .btn-mtn {
@@ -547,6 +554,10 @@ body {
     background: var(--gradient-mtn);
     border-color: var(--color-mtn);
     color: var(--color-black);
+}
+
+.tab-btn[data-network="airteltigo"]:hover {
+    border-color: var(--color-airteltigo);
 }
 
 .tab-btn[data-network="airteltigo"].active {

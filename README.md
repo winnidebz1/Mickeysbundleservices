@@ -185,7 +185,7 @@ async function initiateMoolrePayment(phone, amount, network) {
 ## 📞 Support
 
 For technical support or customization requests:
-- WhatsApp: +233 XX XXX XXXX
+- WhatsApp: 055 410 4763
 - Email: support@mickeysbundle.com
 
 ## 📝 License
