@@ -54,7 +54,7 @@ export default async function handler(req, res) {
             type: 1,  // Direct Debit/Momo Prompt
             channel: channel,
             currency: 'GHS',
-            payer: paymentPhone.replace(/^0/, '233'), // Convert 0XX to 233XX
+            payer: paymentPhone, // Keep 0XX format - Moolre requires it
             amount: parseFloat(amount),
             externalref: transactionRef,
             accountnumber: MOOLRE_ACCOUNT_NUMBER,
