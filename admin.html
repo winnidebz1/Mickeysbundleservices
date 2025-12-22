@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Mickey's Bundle Services</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="admin-body">
+    <!-- Sidebar -->
+    <aside class="admin-sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">📱</span>
+                <span class="logo-text">Mickey's Admin</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#dashboard" class="nav-item active" onclick="showSection('dashboard')">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#transactions" class="nav-item" onclick="showSection('transactions')">
+                <span class="nav-icon">💳</span>
+                <span>Transactions</span>
+            </a>
+            <a href="#pending" class="nav-item" onclick="showSection('pending')">
+                <span class="nav-icon">⏳</span>
+                <span>Pending Orders</span>
+            </a>
+            <a href="#settings" class="nav-item" onclick="showSection('settings')">
+                <span class="nav-icon">⚙️</span>
+                <span>Settings</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="btn-logout" onclick="logout()">
+                <span>🚪</span>
+                <span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <!-- Header -->
+        <header class="admin-header">
+            <h1 class="page-title">Dashboard</h1>
+            <div class="header-actions">
+                <button class="btn-icon" onclick="refreshData()">
+                    <span>🔄</span>
+                </button>
+                <div class="admin-profile">
+                    <span class="profile-name">Admin</span>
+                    <div class="profile-avatar">👤</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="admin-section active">
+            <!-- Stats Cards -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #10B981 0%, #059669 100%);">💰
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Total Revenue</p>
+                        <h3 class="stat-value">GH₵ <span id="totalRevenue">0.00</span></h3>
+                        <p class="stat-change positive">+12.5% from last month</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);">📦
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Total Orders</p>
+                        <h3 class="stat-value"><span id="totalOrders">0</span></h3>
+                        <p class="stat-change positive">+8.2% from last month</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">⏳
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Pending Orders</p>
+                        <h3 class="stat-value"><span id="pendingOrders">0</span></h3>
+                        <p class="stat-change">Needs attention</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);">✅
+                    </div>
+                    <div class="stat-content">
+                        <p class="stat-label">Completed Today</p>
+                        <h3 class="stat-value"><span id="completedToday">0</span></h3>
+                        <p class="stat-change">Last updated: just now</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="dashboard-section-content">
+                <h2 class="section-heading">Recent Transactions</h2>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Transaction ID</th>
+                                <th>Customer</th>
+                                <th>Network</th>
+                                <th>Bundle</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentTransactions">
+                            <!-- Transactions will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transactions Section -->
+        <section id="transactions-section" class="admin-section">
+            <div class="section-header">
+                <h2 class="section-heading">All Transactions</h2>
+                <div class="section-actions">
+                    <input type="text" class="search-input" placeholder="Search transactions..."
+                        id="searchTransactions">
+                    <select class="filter-select" id="filterStatus">
+                        <option value="all">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="successful">Successful</option>
+                        <option value="failed">Failed</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="exportTransactions()">
+                        <span>📥</span>
+                        <span>Export</span>
+                    </button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date & Time</th>
+                            <th>Customer Phone</th>
+                            <th>Network</th>
+                            <th>Bundle</th>
+                            <th>Payment Method</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allTransactions">
+                        <!-- Transactions will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Pending Orders Section -->
+        <section id="pending-section" class="admin-section">
+            <div class="section-header">
+                <h2 class="section-heading">Pending Orders</h2>
+                <button class="btn btn-primary" onclick="refreshPending()">
+                    <span>🔄</span>
+                    <span>Refresh</span>
+                </button>
+            </div>
+            <div class="pending-grid" id="pendingGrid">
+                <!-- Pending orders will be loaded here -->
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="settings-section" class="admin-section">
+            <h2 class="section-heading">Settings</h2>
+            <div class="settings-container">
+                <div class="settings-card">
+                    <h3 class="settings-title">Payment Gateway</h3>
+                    <div class="form-group">
+                        <label class="form-label">Moolre API Key</label>
+                        <input type="password" class="form-input" placeholder="Enter API key">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Webhook URL</label>
+                        <input type="text" class="form-input" placeholder="https://yourdomain.com/webhook">
+                    </div>
+                    <button class="btn btn-primary">Save Changes</button>
+                </div>
+                <div class="settings-card">
+                    <h3 class="settings-title">Notification Settings</h3>
+                    <div class="form-group">
+                        <label class="form-label">WhatsApp Number</label>
+                        <input type="tel" class="form-input" placeholder="+233 XX XXX XXXX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email Notifications</label>
+                        <input type="email" class="form-input" placeholder="admin@mickeysbundle.com">
+                    </div>
+                    <button class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="assets/js/admin.js"></script>
+</body>
+
+</html>

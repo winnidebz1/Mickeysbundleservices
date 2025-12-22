@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mickey's Bundle Services - Fast & Affordable Data Bundles in Ghana</title>
+    <meta name="description"
+        content="Buy MTN, MTN AFA & AirtelTigo data bundles instantly with Mobile Money. Fast, reliable, and affordable data reselling in Ghana.">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="navbar">
+                <div class="logo">
+                    <span class="logo-icon">📱</span>
+                    <span class="logo-text">Mickey's Bundle</span>
+                </div>
+                <ul class="nav-menu">
+                    <li><a href="#home" class="nav-link active">Home</a></li>
+                    <li><a href="#bundles" class="nav-link">Bundles</a></li>
+                    <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+                    <li><a href="#contact" class="nav-link">Contact</a></li>
+                </ul>
+                <button class="mobile-menu-toggle" aria-label="Toggle menu">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">Fast & Affordable Data Bundles in Ghana</h1>
+                    <p class="hero-subtitle">Buy MTN, MTN AFA & AirtelTigo data bundles instantly with Mobile Money.
+                        Delivered within minutes!</p>
+                    <div class="hero-cta">
+                        <button class="btn btn-primary" onclick="scrollToSection('networks')">Buy Data Now</button>
+                        <button class="btn btn-secondary" onclick="scrollToSection('bundles')">View Prices</button>
+                    </div>
+                    <div class="trust-badges">
+                        <div class="badge">
+                            <span class="badge-icon">⚡</span>
+                            <span>Instant Delivery</span>
+                        </div>
+                        <div class="badge">
+                            <span class="badge-icon">🔒</span>
+                            <span>Secure Payment</span>
+                        </div>
+                        <div class="badge">
+                            <span class="badge-icon">✓</span>
+                            <span>Trusted Service</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="phone-mockup">
+                        <div class="phone-screen">
+                            <div class="network-logos-display">
+                                <img src="assets/images/mtn-logo.png" alt="MTN" class="network-logo-hero">
+                                <img src="assets/images/mtn-afa-logo.png" alt="MTN AFA" class="network-logo-hero">
+                                <img src="assets/images/airteltigo-logo.png" alt="AirtelTigo" class="network-logo-hero">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Network Selection Section -->
+    <section id="networks" class="networks">
+        <div class="container">
+            <h2 class="section-title">Choose Your Network</h2>
+            <p class="section-subtitle">Select your preferred mobile network to view available bundles</p>
+            <div class="network-cards">
+                <div class="network-card" data-network="mtn" onclick="selectNetwork('mtn')">
+                    <div class="network-card-inner">
+                        <img src="assets/images/mtn-logo.png" alt="MTN" class="network-logo">
+                        <h3 class="network-name">MTN</h3>
+                        <p class="network-desc">Ghana's leading network</p>
+                        <button class="btn btn-network btn-mtn">View Bundles</button>
+                    </div>
+                </div>
+                <div class="network-card" data-network="mtn-afa" onclick="selectNetwork('mtn-afa')">
+                    <div class="network-card-inner">
+                        <img src="assets/images/mtn-afa-logo.png" alt="MTN AFA" class="network-logo">
+                        <h3 class="network-name">MTN AFA</h3>
+                        <p class="network-desc">Premium data packages</p>
+                        <button class="btn btn-network btn-mtn-afa">View Bundles</button>
+                    </div>
+                </div>
+                <div class="network-card" data-network="airteltigo" onclick="selectNetwork('airteltigo')">
+                    <div class="network-card-inner">
+                        <img src="assets/images/airteltigo-logo.png" alt="AirtelTigo" class="network-logo">
+                        <h3 class="network-name">AirtelTigo</h3>
+                        <p class="network-desc">Affordable data plans</p>
+                        <button class="btn btn-network btn-airteltigo">View Bundles</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bundles Section -->
+    <section id="bundles" class="bundles">
+        <div class="container">
+            <h2 class="section-title">Data Bundle Pricing</h2>
+            <p class="section-subtitle">Transparent pricing with instant delivery</p>
+
+            <!-- Network Filter Tabs -->
+            <div class="bundle-tabs">
+                <button class="tab-btn active" data-network="mtn" onclick="filterBundles('mtn')">MTN</button>
+                <button class="tab-btn" data-network="mtn-afa" onclick="filterBundles('mtn-afa')">MTN AFA</button>
+                <button class="tab-btn" data-network="airteltigo"
+                    onclick="filterBundles('airteltigo')">AirtelTigo</button>
+            </div>
+
+            <!-- MTN Bundles -->
+            <div class="bundle-list" id="mtn-bundles">
+                <!-- Bundles will be dynamically loaded -->
+            </div>
+
+            <!-- MTN AFA Bundles -->
+            <div class="bundle-list hidden" id="mtn-afa-bundles">
+                <!-- Bundles will be dynamically loaded -->
+            </div>
+
+            <!-- AirtelTigo Bundles -->
+            <div class="bundle-list hidden" id="airteltigo-bundles">
+                <!-- Bundles will be dynamically loaded -->
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Get your data in 4 simple steps</p>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">📱</div>
+                    <h3 class="step-title">Select Network & Bundle</h3>
+                    <p class="step-desc">Choose your mobile network and preferred data bundle</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">💳</div>
+                    <h3 class="step-title">Choose Payment Method</h3>
+                    <p class="step-desc">Select MTN MoMo, Telecel Cash, or AirtelTigo Money</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">🔐</div>
+                    <h3 class="step-title">Approve Payment</h3>
+                    <p class="step-desc">Enter your MoMo PIN on your phone to confirm payment</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-icon">✅</div>
+                    <h3 class="step-title">Receive Data</h3>
+                    <p class="step-desc">Your data bundle will be delivered within 10-15 minutes</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust & Security Section -->
+    <section class="trust-section">
+        <div class="container">
+            <div class="trust-content">
+                <div class="trust-icon">🔒</div>
+                <h2 class="trust-title">Your Security is Our Priority</h2>
+                <p class="trust-text">We do not collect or store your MoMo PIN. All payments are securely processed via
+                    Moolre, a certified third-party payment gateway.</p>
+                <div class="payment-badge">
+                    <span class="badge-text">Payments powered by</span>
+                    <span class="badge-logo">Moolre</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2 class="section-title">Need Help?</h2>
+            <p class="section-subtitle">We're here to assist you</p>
+            <div class="contact-options">
+                <a href="https://wa.me/233XXXXXXXXX" class="contact-card" target="_blank">
+                    <div class="contact-icon">💬</div>
+                    <h3>WhatsApp Support</h3>
+                    <p>Chat with us instantly</p>
+                </a>
+                <a href="tel:+233XXXXXXXXX" class="contact-card">
+                    <div class="contact-icon">📞</div>
+                    <h3>Call Us</h3>
+                    <p>+233 XX XXX XXXX</p>
+                </a>
+                <a href="mailto:support@mickeysbundle.com" class="contact-card">
+                    <div class="contact-icon">✉️</div>
+                    <h3>Email Us</h3>
+                    <p>support@mickeysbundle.com</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="logo">
+                        <span class="logo-icon">📱</span>
+                        <span class="logo-text">Mickey's Bundle</span>
+                    </div>
+                    <p>Fast, reliable, and affordable data bundles in Ghana</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#bundles">Bundles</a></li>
+                        <li><a href="#how-it-works">How It Works</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-legal">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Refund Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Mickey's Bundle Services. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Purchase Modal -->
+    <div id="purchaseModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <div id="modalBody">
+                <!-- Modal content will be dynamically loaded -->
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/bundles-data.js"></script>
+    <script src="assets/js/main.js"></script>
+</body>
+
+</html>
