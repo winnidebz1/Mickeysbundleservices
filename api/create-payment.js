@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-    // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -7,125 +6,92 @@ export default async function handler(req, res) {
     try {
         const { paymentPhone, recipientPhone, network, amount, bundle } = req.body;
 
-        // Validation
         if (!paymentPhone || !recipientPhone || !network || !amount || !bundle) {
-            return res.status(400).json({
-                error: 'Missing required fields',
-                required: ['paymentPhone', 'recipientPhone', 'network', 'amount', 'bundle']
-            });
+            return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Validate phone number format (Ghana format: 10 digits starting with 0)
-        const phoneRegex = /^0[0-9]{9}$/;
-        if (!phoneRegex.test(paymentPhone)) {
-            return res.status(400).json({ error: 'Invalid payment phone number format' });
-        }
-        if (!phoneRegex.test(recipientPhone)) {
-            return res.status(400).json({ error: 'Invalid recipient phone number format' });
-        }
+        // Configuration
+        const API_USERNAME = process.env.THETELLER_API_USERNAME;
+        const API_KEY = process.env.THETELLER_API_KEY; // Base64 encoded 'username:apikey' usually, or just apikey
 
-        // Get Moolre credentials from environment variables
-        const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
-        const MOOLRE_API_PUBKEY = process.env.MOOLRE_API_PUBKEY;
-        const MOOLRE_ACCOUNT_NUMBER = process.env.MOOLRE_ACCOUNT_NUMBER;
-
-        if (!MOOLRE_API_USER || !MOOLRE_API_PUBKEY || !MOOLRE_ACCOUNT_NUMBER) {
-            console.error('Moolre credentials not set');
-            return res.status(500).json({ error: 'Server configuration error - Missing Moolre credentials' });
+        if (!API_USERNAME || !API_KEY) {
+            console.error('TheTeller credentials not set');
+            return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Map network codes to Moolre channel IDs
-        const moolreChannelMap = {
-            'mtn': 13,        // MTN Mobile Money
-            'mtn-afa': 13,    // MTN AFA uses same channel
-            'airteltigo': 14  // AirtelTigo Money (verify this ID)
+        // Map network to TheTeller R-Switch
+        // MTN = MTN, AirtelTigo = ATL, Vodafone/Telecel = VOD
+        const rSwitchMap = {
+            'mtn': 'MTN',
+            'mtn-afa': 'MTN', // AFA uses MTN MOMO
+            'airteltigo': 'ATL', // Or TGO, verify with documentation. ATL is common.
+            'telecel': 'VOD'
         };
 
-        const channel = moolreChannelMap[network];
-        if (!channel) {
-            return res.status(400).json({ error: 'Unsupported network' });
+        const rSwitch = rSwitchMap[network];
+        if (!rSwitch) {
+            return res.status(400).json({ error: 'Unsupported network for payment' });
         }
 
-        // Generate unique transaction reference
-        const transactionRef = `MBS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Generate 12-digit numeric transaction ID
+        const transactionRef = Math.floor(100000000000 + Math.random() * 900000000000).toString();
 
-        // Get client IP address
-        const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        // Amount must be formatted string padded to 12 chars? 
+        // Docs say amount in minor units (pesewas) usually, e.g. "000000000100" for 1 GHS
+        // Let's verify standard behavior. Usually JSON APIs take 1.00 or "000000000100".
+        // TheTeller standard: 12 digit string, last 2 are decimals. 
+        // e.g. 1.50 -> 150 -> "000000000150"
+        const amountMinor = Math.round(amount * 100);
+        const amountString = amountMinor.toString().padStart(12, '0');
 
-        // Construct payload for Moolre API
         const payload = {
-            type: 1, // Standard transaction type
-            channel: channel,
-            currency: 'GHS',
-            payer: paymentPhone, // Keep 0XX format - Moolre requires it
-            amount: parseFloat(amount),
-            clientip: ip, // Sending client IP might help with trust score
-            externalref: transactionRef,
-            accountnumber: MOOLRE_ACCOUNT_NUMBER,
-            reference: `${bundle} for ${recipientPhone}`
+            "merchant_id": API_USERNAME, // Often the username is the merchant ID
+            "transaction_id": transactionRef,
+            "desc": `${bundle} Bundle for ${recipientPhone}`,
+            "amount": amountString,
+            "processing_code": "000200", // 000200 is often used for MoMo debit
+            "r-switch": rSwitch,
+            "subscriber_number": paymentPhone,
+            "voucher_code": "" // Optional, for VOD sometimes
         };
 
-        console.log('Initiating payment with Moolre');
-        console.log('Reference:', transactionRef);
-        console.log('Payment from:', paymentPhone, 'Data to:', recipientPhone);
-        console.log('Payload:', JSON.stringify(payload, null, 2));
+        const auth = Buffer.from(`${API_USERNAME}:${API_KEY}`).toString('base64');
 
-        // Call Moolre API with correct endpoint and headers
-        const response = await fetch('https://api.moolre.com/open/transact/payment', {
+        console.log('Initiating payment with TheTeller:', transactionRef);
+
+        const response = await fetch('https://prod.theteller.net/v1.1/transaction/process', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-USER': MOOLRE_API_USER,
-                'X-API-PUBKEY': MOOLRE_API_PUBKEY
+                'Authorization': `Basic ${auth}`,
+                'Cache-Control': 'no-cache'
             },
             body: JSON.stringify(payload)
         });
 
-        // Get response text first to handle both JSON and non-JSON responses
-        const responseText = await response.text();
-        console.log('Moolre API Response Status:', response.status);
-        console.log('Moolre API Response:', responseText);
+        const data = await response.json();
+        console.log('TheTeller Response:', JSON.stringify(data));
 
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Failed to parse Moolre response as JSON:', parseError);
-            return res.status(500).json({
-                error: 'Invalid response from payment gateway',
-                details: responseText.substring(0, 500)
+        // '000' usually means approved/successful push
+        if (data.code === '000' || data.status === 'success') {
+            return res.status(200).json({
+                success: true,
+                transactionRef: transactionRef,
+                message: 'Payment prompt sent successfully. Check your phone.',
+                gatewayResponse: data,
+                recipientPhone,
+                bundle,
+                network
             });
-        }
-
-        // Check Moolre's response format: status: 1 = success, 0 = failure
-        if (data.status !== 1) {
-            console.error('Moolre API Error:', data);
+        } else {
             return res.status(400).json({
-                error: data.message || 'Payment initiation failed',
-                code: data.code,
+                error: data.reason || 'Payment initiation failed',
                 details: data
             });
         }
 
-        // Payment initiated successfully
-        console.log('Payment initiated successfully:', data);
-
-        // Return success response
-        return res.status(200).json({
-            success: true,
-            transactionRef: transactionRef,
-            message: data.message || 'Payment initiated successfully',
-            moolreData: data.data,
-            recipientPhone: recipientPhone,
-            bundle: bundle,
-            network: network
-        });
-
     } catch (error) {
-        console.error('Server error:', error);
-        return res.status(500).json({
-            error: 'Internal server error',
-            message: error.message
-        });
+        console.error('Order Error:', error);
+        return res.status(500).json({ error: error.message });
     }
 }

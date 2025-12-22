@@ -351,22 +351,8 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
             // Payment initiated successfully
             console.log('Payment initiated:', data);
 
-            // Store data globally
-            window.currentPaymentData = {
-                paymentPhone: paymentPhone,
-                recipientPhone: recipientPhone,
-                moolreData: data.moolreData || data
-            };
-
-            // Intelligent Switch: Check message content to decide UI
-            const message = (data.message || '').toLowerCase();
-            if (message.includes('sms') || message.includes('verification') || message.includes('code')) {
-                // Moolre is asking for OTP -> Show OTP screen immediately
-                showOTPInput(paymentPhone, recipientPhone, window.currentPaymentData.moolreData);
-            } else {
-                // Otherwise assume STK Push -> Show prompt screen
-                showPaymentSuccess(recipientPhone);
-            }
+            // Show processing screen - TheTeller sends STK Push
+            showPaymentSuccess(recipientPhone);
         } else {
             alert('Payment execution failed: ' + (data.error || 'Unknown error'));
             closeModal();

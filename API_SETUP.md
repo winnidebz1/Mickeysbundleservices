@@ -33,9 +33,8 @@ Get your API credentials from your chosen provider.
 3. Add the following variables:
 
 ```
-MOOLRE_API_USER=your_moolre_user_email
-MOOLRE_API_PUBKEY=your_moolre_public_key
-MOOLRE_ACCOUNT_NUMBER=your_moolre_account_number
+THETELLER_API_USERNAME=your_teller_email_or_username
+THETELLER_API_KEY=your_teller_api_key
 ADMIN_WEBHOOK_URL=https://your-domain.vercel.app/api/webhook
 BUNDLE_API_KEY=your_bundle_provider_api_key
 BUNDLE_API_URL=https://api.your-bundle-provider.com/deliver
