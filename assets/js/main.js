@@ -233,15 +233,47 @@ function showPaymentProcessing(phoneNumber, paymentMethod) {
         </div>
     `;
 
-    // Simulate payment processing (In production, this would be real Moolre API integration)
-    simulatePaymentProcessing();
+    // Initiate real payment
+    initiateMoolrePayment(phoneNumber, paymentMethod);
 }
 
-function simulatePaymentProcessing() {
-    // Simulate payment confirmation after 5 seconds
-    setTimeout(() => {
-        showPaymentSuccess();
-    }, 5000);
+async function initiateMoolrePayment(phone, paymentMethod) {
+    try {
+        const response = await fetch('/api/create-payment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                phone: phone,
+                network: currentPurchase.network,
+                amount: currentPurchase.price,
+                bundle: currentPurchase.size
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Payment initiated successfully
+            // In a real app, you would poll for status or wait for webhook
+            // For now, we keep the UI feedback loop
+            console.log('Payment initiated:', data);
+
+            // Optimistic success update for demo purposes
+            // In production, you'd wait for the webhook confirmation
+            setTimeout(() => {
+                showPaymentSuccess();
+            }, 15000); // Wait 15s for user to approve on phone
+        } else {
+            alert('Payment execution failed: ' + (data.error || 'Unknown error'));
+            closeModal();
+        }
+    } catch (error) {
+        console.error('Payment Error:', error);
+        alert('Network error. Please check your connection.');
+        closeModal();
+    }
 }
 
 function showPaymentSuccess() {
