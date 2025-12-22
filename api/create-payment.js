@@ -46,7 +46,6 @@ export default async function handler(req, res) {
         const transactionRef = `MBS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         // Construct payload for Moolre API
-        // NOTE: Verify exact field names with Moolre documentation
         const payload = {
             amount: parseFloat(amount),
             customer_msisdn: paymentPhone.replace(/^0/, '233'), // Convert 0XX to 233XX
@@ -77,7 +76,21 @@ export default async function handler(req, res) {
             body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
+        // Get response text first to handle both JSON and non-JSON responses
+        const responseText = await response.text();
+        console.log('Moolre API Response Status:', response.status);
+        console.log('Moolre API Response:', responseText);
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Failed to parse Moolre response as JSON:', parseError);
+            return res.status(500).json({
+                error: 'Invalid response from payment gateway',
+                details: responseText.substring(0, 200) // First 200 chars for debugging
+            });
+        }
 
         if (!response.ok) {
             console.error('Moolre API Error:', data);
@@ -86,9 +99,6 @@ export default async function handler(req, res) {
                 details: data
             });
         }
-
-        // Store transaction in database (if you have one)
-        // await storeTransaction({ transactionRef, paymentPhone, recipientPhone, network, bundle, amount, status: 'pending' });
 
         // Return success response
         return res.status(200).json({
