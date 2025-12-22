@@ -25,57 +25,54 @@ export default async function handler(req, res) {
         }
 
         // Get Moolre credentials from environment variables
-        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY;
         const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
         const MOOLRE_API_PUBKEY = process.env.MOOLRE_API_PUBKEY;
+        const MOOLRE_ACCOUNT_NUMBER = process.env.MOOLRE_ACCOUNT_NUMBER;
 
-        if (!MOOLRE_API_KEY || !MOOLRE_API_USER || !MOOLRE_API_PUBKEY) {
+        if (!MOOLRE_API_USER || !MOOLRE_API_PUBKEY || !MOOLRE_ACCOUNT_NUMBER) {
             console.error('Moolre credentials not set');
             return res.status(500).json({ error: 'Server configuration error - Missing Moolre credentials' });
         }
 
-        // Map network codes to Moolre's expected format
-        const moolreNetworkMap = {
-            'mtn': 'MTN',
-            'mtn-afa': 'MTN',
-            'airteltigo': 'AIRTELTIGO'
+        // Map network codes to Moolre channel IDs
+        const moolreChannelMap = {
+            'mtn': 13,        // MTN Mobile Money
+            'mtn-afa': 13,    // MTN AFA uses same channel
+            'airteltigo': 14  // AirtelTigo Money (verify this ID)
         };
 
-        const provider = moolreNetworkMap[network] || network.toUpperCase();
+        const channel = moolreChannelMap[network];
+        if (!channel) {
+            return res.status(400).json({ error: 'Unsupported network' });
+        }
 
         // Generate unique transaction reference
         const transactionRef = `MBS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         // Construct payload for Moolre API
-        // Note: Check Moolre's Payments API documentation for exact field names
         const payload = {
+            type: 1,  // Direct Debit/Momo Prompt
+            channel: channel,
+            currency: 'GHS',
+            payer: paymentPhone.replace(/^0/, '233'), // Convert 0XX to 233XX
             amount: parseFloat(amount),
-            phone: paymentPhone.replace(/^0/, '233'), // Convert 0XX to 233XX
-            network: provider,
-            reference: transactionRef,
-            description: `Data Bundle: ${bundle} for ${recipientPhone}`,
-            metadata: {
-                bundle: bundle,
-                network: network,
-                recipientPhone: recipientPhone,
-                paymentPhone: paymentPhone,
-                timestamp: new Date().toISOString()
-            }
+            externalref: transactionRef,
+            accountnumber: MOOLRE_ACCOUNT_NUMBER,
+            reference: `${bundle} for ${recipientPhone}`
         };
 
-        console.log('Initiating payment with reference:', transactionRef);
+        console.log('Initiating payment with Moolre');
+        console.log('Reference:', transactionRef);
         console.log('Payment from:', paymentPhone, 'Data to:', recipientPhone);
         console.log('Payload:', JSON.stringify(payload, null, 2));
 
-        // Call Moolre API with correct authentication headers
-        const response = await fetch('https://api.moolre.com/payments/collect', {
+        // Call Moolre API with correct endpoint and headers
+        const response = await fetch('https://api.moolre.com/open/transact/payment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-API-USER': MOOLRE_API_USER,
-                'X-API-KEY': MOOLRE_API_KEY,
-                'X-API-PUBKEY': MOOLRE_API_PUBKEY,
-                'Accept': 'application/json'
+                'X-API-PUBKEY': MOOLRE_API_PUBKEY
             },
             body: JSON.stringify(payload)
         });
@@ -92,7 +89,7 @@ export default async function handler(req, res) {
             console.error('Failed to parse Moolre response as JSON:', parseError);
             return res.status(500).json({
                 error: 'Invalid response from payment gateway',
-                details: responseText.substring(0, 500) // First 500 chars for debugging
+                details: responseText.substring(0, 500)
             });
         }
 
@@ -106,12 +103,18 @@ export default async function handler(req, res) {
             });
         }
 
+        // Payment initiated successfully
+        console.log('Payment initiated successfully:', data);
+
         // Return success response
         return res.status(200).json({
             success: true,
             transactionRef: transactionRef,
             message: data.message || 'Payment initiated successfully',
-            data: data.data
+            moolreData: data.data,
+            recipientPhone: recipientPhone,
+            bundle: bundle,
+            network: network
         });
 
     } catch (error) {
