@@ -54,11 +54,43 @@ function scrollToSection(sectionId) {
 // NETWORK SELECTION
 // ===================================
 function selectNetwork(network) {
-    // Filter to show bundles for selected network
-    filterBundles(network);
+    // Show bundles modal for selected network
+    showBundlesModal(network);
+}
 
-    // Scroll to bundles section
-    scrollToSection('bundles');
+function showBundlesModal(network) {
+    const modal = document.getElementById('purchaseModal');
+    const modalBody = document.getElementById('modalBody');
+    
+    const networkName = networkNames[network];
+    const bundles = bundlesData[network];
+    
+    if (!bundles || bundles.length === 0) {
+        alert('No bundles available for this network');
+        return;
+    }
+    
+    // Create bundles list HTML
+    let bundlesHTML = bundles.map(bundle => `
+        <div class="bundle-item-modal" onclick="purchaseBundle('${network}', '${bundle.size}', ${bundle.price})">
+            <div class="bundle-header">
+                <h3 class="bundle-size">${bundle.size}</h3>
+                <span class="bundle-price">GH₵ ${bundle.price.toFixed(2)}</span>
+            </div>
+            ${bundle.validity ? `<p class="bundle-validity">Valid for ${bundle.validity}</p>` : ''}
+            <button class="btn btn-primary btn-sm">Buy Now</button>
+        </div>
+    `).join('');
+    
+    modalBody.innerHTML = `
+        <h2 class="section-title" style="font-size: 1.75rem; margin-bottom: 0.5rem;">${networkName} Data Bundles</h2>
+        <p class="section-subtitle" style="margin-bottom: 1.5rem;">Select a bundle to purchase</p>
+        <div class="bundles-modal-grid">
+            ${bundlesHTML}
+        </div>
+    `;
+    
+    modal.classList.add('active');
 }
 
 // ===================================

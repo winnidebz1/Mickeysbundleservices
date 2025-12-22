@@ -962,7 +962,7 @@ body {
     background: var(--color-white);
     border-radius: var(--radius-2xl);
     padding: var(--spacing-2xl);
-    max-width: 500px;
+    max-width: 600px;
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
@@ -1068,6 +1068,68 @@ body {
         transform: rotate(360deg);
     }
 }
+
+/* Bundles Modal Grid */
+.bundles-modal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.bundle-item-modal {
+    background: var(--color-grey-50);
+    border: 2px solid var(--color-grey-200);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-align: center;
+}
+
+.bundle-item-modal:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-mtn);
+    background: var(--color-white);
+}
+
+.bundle-header {
+    margin-bottom: var(--spacing-sm);
+}
+
+.bundle-item-modal .bundle-size {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--color-black);
+    margin-bottom: var(--spacing-xs);
+}
+
+.bundle-item-modal .bundle-price {
+    font-size: var(--font-size-xl);
+    font-weight: 800;
+    color: var(--color-mtn);
+    display: block;
+}
+
+.bundle-validity {
+    font-size: var(--font-size-xs);
+    color: var(--color-grey-600);
+    margin-bottom: var(--spacing-sm);
+}
+
+.btn-sm {
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    width: 100%;
+}
+
+@media (max-width: 480px) {
+    .bundles-modal-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 /* ===================================
    RESPONSIVE DESIGN
