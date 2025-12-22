@@ -322,6 +322,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Load initial dashboard
     loadDashboard();
+
+    // Auto-refresh pending orders every 30 seconds
+    setInterval(() => {
+        const currentSection = document.querySelector('.admin-section.active');
+        if (currentSection && currentSection.id === 'pending-section') {
+            loadPendingOrders();
+        }
+        updateStats(); // Update stats badge
+    }, 30000); // 30 seconds
 });
 
 function filterTransactions() {
