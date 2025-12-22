@@ -17,26 +17,27 @@ export default async function handler(req, res) {
 
         // Validate phone number format (Ghana format: 10 digits starting with 0)
         const phoneRegex = /^0[0-9]{9}$/;
-        if (!phoneRegex.test(paymentPhone)) {
+        if (!paymentPhone.test(paymentPhone)) {
             return res.status(400).json({ error: 'Invalid payment phone number format' });
         }
         if (!phoneRegex.test(recipientPhone)) {
             return res.status(400).json({ error: 'Invalid recipient phone number format' });
         }
 
-        // Get API Key from environment variable
+        // Get Moolre credentials from environment variables
         const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY;
-        const ADMIN_WEBHOOK_URL = process.env.ADMIN_WEBHOOK_URL || 'https://your-domain.com/api/webhook';
+        const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
+        const MOOLRE_API_PUBKEY = process.env.MOOLRE_API_PUBKEY;
 
-        if (!MOOLRE_API_KEY) {
-            console.error('MOOLRE_API_KEY is not set');
-            return res.status(500).json({ error: 'Server configuration error' });
+        if (!MOOLRE_API_KEY || !MOOLRE_API_USER || !MOOLRE_API_PUBKEY) {
+            console.error('Moolre credentials not set');
+            return res.status(500).json({ error: 'Server configuration error - Missing Moolre credentials' });
         }
 
         // Map network codes to Moolre's expected format
         const moolreNetworkMap = {
             'mtn': 'MTN',
-            'mtn-afa': 'MTN', // AFA is processed as MTN
+            'mtn-afa': 'MTN',
             'airteltigo': 'AIRTELTIGO'
         };
 
@@ -46,13 +47,13 @@ export default async function handler(req, res) {
         const transactionRef = `MBS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         // Construct payload for Moolre API
+        // Note: Check Moolre's Payments API documentation for exact field names
         const payload = {
             amount: parseFloat(amount),
-            customer_msisdn: paymentPhone.replace(/^0/, '233'), // Convert 0XX to 233XX
-            provider: provider,
+            phone: paymentPhone.replace(/^0/, '233'), // Convert 0XX to 233XX
+            network: provider,
             reference: transactionRef,
-            narration: `Data Bundle: ${bundle}`,
-            callback_url: ADMIN_WEBHOOK_URL,
+            description: `Data Bundle: ${bundle} for ${recipientPhone}`,
             metadata: {
                 bundle: bundle,
                 network: network,
@@ -64,13 +65,16 @@ export default async function handler(req, res) {
 
         console.log('Initiating payment with reference:', transactionRef);
         console.log('Payment from:', paymentPhone, 'Data to:', recipientPhone);
+        console.log('Payload:', JSON.stringify(payload, null, 2));
 
-        // Call Moolre API
-        const response = await fetch('https://api.moolre.com/v1/payments/mobile-money', {
+        // Call Moolre API with correct authentication headers
+        const response = await fetch('https://api.moolre.com/payments/collect', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${MOOLRE_API_KEY}`,
+                'X-API-USER': MOOLRE_API_USER,
+                'X-API-KEY': MOOLRE_API_KEY,
+                'X-API-PUBKEY': MOOLRE_API_PUBKEY,
                 'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
@@ -88,14 +92,16 @@ export default async function handler(req, res) {
             console.error('Failed to parse Moolre response as JSON:', parseError);
             return res.status(500).json({
                 error: 'Invalid response from payment gateway',
-                details: responseText.substring(0, 200) // First 200 chars for debugging
+                details: responseText.substring(0, 500) // First 500 chars for debugging
             });
         }
 
-        if (!response.ok) {
+        // Check Moolre's response format: status: 1 = success, 0 = failure
+        if (data.status !== 1) {
             console.error('Moolre API Error:', data);
-            return res.status(response.status).json({
+            return res.status(400).json({
                 error: data.message || 'Payment initiation failed',
+                code: data.code,
                 details: data
             });
         }
@@ -104,8 +110,8 @@ export default async function handler(req, res) {
         return res.status(200).json({
             success: true,
             transactionRef: transactionRef,
-            message: 'Payment initiated successfully',
-            data: data
+            message: data.message || 'Payment initiated successfully',
+            data: data.data
         });
 
     } catch (error) {
