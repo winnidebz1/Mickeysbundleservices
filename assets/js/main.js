@@ -283,7 +283,7 @@ function showPaymentSuccess() {
                 Done
             </button>
             <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-grey-600);">
-                Need help? <a href="https://wa.me/233XXXXXXXXX" style="color: var(--color-mtn); font-weight: 600;">Contact Support</a>
+                Need help? <a href="https://wa.me/233554104763" style="color: var(--color-mtn); font-weight: 600;">Contact Support</a>
             </p>
         </div>
     `;

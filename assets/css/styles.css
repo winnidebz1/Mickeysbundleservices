@@ -549,6 +549,12 @@ body {
     color: var(--color-black);
 }
 
+.tab-btn[data-network="airteltigo"].active {
+    background: var(--gradient-airteltigo);
+    border-color: var(--color-airteltigo);
+    color: var(--color-white);
+}
+
 .bundle-list {
     display: flex;
     flex-direction: column;
