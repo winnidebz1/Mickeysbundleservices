@@ -1124,6 +1124,25 @@ body {
     width: 100%;
 }
 
+/* Network-specific modal bundle colors */
+.bundles-modal-grid[data-network="airteltigo"] .bundle-item-modal .bundle-price {
+    color: var(--color-airteltigo);
+}
+
+.bundles-modal-grid[data-network="airteltigo"] .bundle-item-modal:hover {
+    border-color: var(--color-airteltigo);
+}
+
+.bundles-modal-grid[data-network="airteltigo"] .bundle-item-modal .btn-primary {
+    background: var(--gradient-airteltigo);
+    color: var(--color-white);
+}
+
+.bundles-modal-grid[data-network="mtn-afa"] .bundle-item-modal .btn-primary {
+    background: linear-gradient(135deg, #FFCC00 0%, #000000 100%);
+    color: var(--color-white);
+}
+
 @media (max-width: 480px) {
     .bundles-modal-grid {
         grid-template-columns: 1fr;

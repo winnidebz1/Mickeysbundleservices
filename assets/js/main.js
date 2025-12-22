@@ -61,35 +61,35 @@ function selectNetwork(network) {
 function showBundlesModal(network) {
     const modal = document.getElementById('purchaseModal');
     const modalBody = document.getElementById('modalBody');
-    
+
     const networkName = networkNames[network];
     const bundles = bundlesData[network];
-    
+
     if (!bundles || bundles.length === 0) {
         alert('No bundles available for this network');
         return;
     }
-    
+
     // Create bundles list HTML
     let bundlesHTML = bundles.map(bundle => `
         <div class="bundle-item-modal" onclick="purchaseBundle('${network}', '${bundle.size}', ${bundle.price})">
             <div class="bundle-header">
                 <h3 class="bundle-size">${bundle.size}</h3>
-                <span class="bundle-price">GH₵ ${bundle.price.toFixed(2)}</span>
+                <span class="bundle-price">${bundle.price.toFixed(2)}</span>
             </div>
             ${bundle.validity ? `<p class="bundle-validity">Valid for ${bundle.validity}</p>` : ''}
             <button class="btn btn-primary btn-sm">Buy Now</button>
         </div>
     `).join('');
-    
+
     modalBody.innerHTML = `
         <h2 class="section-title" style="font-size: 1.75rem; margin-bottom: 0.5rem;">${networkName} Data Bundles</h2>
         <p class="section-subtitle" style="margin-bottom: 1.5rem;">Select a bundle to purchase</p>
-        <div class="bundles-modal-grid">
+        <div class="bundles-modal-grid" data-network="${network}">
             ${bundlesHTML}
         </div>
     `;
-    
+
     modal.classList.add('active');
 }
 
@@ -157,9 +157,29 @@ function showPurchaseModal() {
         
         <form class="purchase-form" onsubmit="processPurchase(event)">
             <div class="form-group">
+                <label class="form-label">Who is receiving the data?</label>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="radio" name="recipientType" value="self" id="recipientSelf" onchange="toggleRecipientField()" checked>
+                        <span>For myself</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="radio" name="recipientType" value="other" id="recipientOther" onchange="toggleRecipientField()">
+                        <span>For someone else</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Payment Phone Number</label>
+                <input type="tel" class="form-input" id="paymentNumber" placeholder="0XX XXX XXXX" required pattern="[0-9]{10}" maxlength="10" oninput="syncRecipientNumber()">
+                <small style="color: var(--color-grey-600); font-size: 0.875rem;">Number that will make the payment</small>
+            </div>
+            
+            <div class="form-group" id="recipientNumberGroup" style="display: none;">
                 <label class="form-label">Recipient Phone Number</label>
-                <input type="tel" class="form-input" id="phoneNumber" placeholder="0XX XXX XXXX" required pattern="[0-9]{10}" maxlength="10">
-                <small style="color: var(--color-grey-600); font-size: 0.875rem;">Enter 10-digit phone number</small>
+                <input type="tel" class="form-input" id="recipientNumber" placeholder="0XX XXX XXXX" pattern="[0-9]{10}" maxlength="10">
+                <small style="color: var(--color-grey-600); font-size: 0.875rem;">Number that will receive the data</small>
             </div>
             
             <div class="form-group">
@@ -196,6 +216,31 @@ function showPurchaseModal() {
     modal.classList.add('active');
 }
 
+function toggleRecipientField() {
+    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
+    const recipientNumberGroup = document.getElementById('recipientNumberGroup');
+    const recipientNumberInput = document.getElementById('recipientNumber');
+    const paymentNumber = document.getElementById('paymentNumber').value;
+
+    if (recipientType === 'other') {
+        recipientNumberGroup.style.display = 'block';
+        recipientNumberInput.required = true;
+        recipientNumberInput.value = '';
+    } else {
+        recipientNumberGroup.style.display = 'none';
+        recipientNumberInput.required = false;
+        recipientNumberInput.value = paymentNumber;
+    }
+}
+
+function syncRecipientNumber() {
+    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
+    if (recipientType === 'self') {
+        const paymentNumber = document.getElementById('paymentNumber').value;
+        document.getElementById('recipientNumber').value = paymentNumber;
+    }
+}
+
 function closeModal() {
     const modal = document.getElementById('purchaseModal');
     modal.classList.remove('active');
@@ -216,25 +261,37 @@ window.addEventListener('click', (e) => {
 function processPurchase(event) {
     event.preventDefault();
 
-    const phoneNumber = document.getElementById('phoneNumber').value;
+    const paymentNumber = document.getElementById('paymentNumber').value;
+    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
+    const recipientNumber = recipientType === 'self' ? paymentNumber : document.getElementById('recipientNumber').value;
     const paymentMethod = document.getElementById('paymentMethod').value;
 
-    if (!phoneNumber || !paymentMethod) {
+    if (!paymentNumber || !paymentMethod) {
         alert('Please fill in all required fields');
         return;
     }
 
+    if (recipientType === 'other' && !recipientNumber) {
+        alert('Please enter the recipient phone number');
+        return;
+    }
+
     // Validate phone number format
-    if (!/^0[0-9]{9}$/.test(phoneNumber)) {
-        alert('Please enter a valid 10-digit phone number starting with 0');
+    if (!/^0[0-9]{9}$/.test(paymentNumber)) {
+        alert('Please enter a valid 10-digit payment phone number starting with 0');
+        return;
+    }
+
+    if (recipientType === 'other' && !/^0[0-9]{9}$/.test(recipientNumber)) {
+        alert('Please enter a valid 10-digit recipient phone number starting with 0');
         return;
     }
 
     // Show payment processing screen
-    showPaymentProcessing(phoneNumber, paymentMethod);
+    showPaymentProcessing(paymentNumber, recipientNumber, paymentMethod);
 }
 
-function showPaymentProcessing(phoneNumber, paymentMethod) {
+function showPaymentProcessing(paymentNumber, recipientNumber, paymentMethod) {
     const modalBody = document.getElementById('modalBody');
 
     const paymentMethodNames = {
@@ -243,13 +300,16 @@ function showPaymentProcessing(phoneNumber, paymentMethod) {
         'airteltigo-money': 'AirtelTigo Money'
     };
 
+    const isSameNumber = paymentNumber === recipientNumber;
+
     modalBody.innerHTML = `
         <div class="payment-status">
             <div class="status-icon">📱</div>
             <h3 class="status-title">Payment Request Sent</h3>
             <p class="status-message">
-                A payment prompt has been sent to <strong>${phoneNumber}</strong> via ${paymentMethodNames[paymentMethod]}.
+                A payment prompt has been sent to <strong>${paymentNumber}</strong> via ${paymentMethodNames[paymentMethod]}.
             </p>
+            ${!isSameNumber ? `<p class="status-message" style="margin-top: 0.5rem;">Data will be delivered to <strong>${recipientNumber}</strong></p>` : ''}
             <div style="background: var(--color-grey-50); padding: 1.5rem; border-radius: var(--radius-lg); margin: 1.5rem 0;">
                 <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--color-black);">
                     Please enter your Mobile Money PIN on your phone to approve payment.
@@ -266,10 +326,10 @@ function showPaymentProcessing(phoneNumber, paymentMethod) {
     `;
 
     // Initiate real payment
-    initiateMoolrePayment(phoneNumber, paymentMethod);
+    initiateMoolrePayment(paymentNumber, recipientNumber, paymentMethod);
 }
 
-async function initiateMoolrePayment(phone, paymentMethod) {
+async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod) {
     try {
         const response = await fetch('/api/create-payment', {
             method: 'POST',
@@ -277,7 +337,8 @@ async function initiateMoolrePayment(phone, paymentMethod) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                phone: phone,
+                paymentPhone: paymentPhone,
+                recipientPhone: recipientPhone,
                 network: currentPurchase.network,
                 amount: currentPurchase.price,
                 bundle: currentPurchase.size
@@ -295,7 +356,7 @@ async function initiateMoolrePayment(phone, paymentMethod) {
             // Optimistic success update for demo purposes
             // In production, you'd wait for the webhook confirmation
             setTimeout(() => {
-                showPaymentSuccess();
+                showPaymentSuccess(recipientPhone);
             }, 15000); // Wait 15s for user to approve on phone
         } else {
             alert('Payment execution failed: ' + (data.error || 'Unknown error'));
@@ -308,7 +369,7 @@ async function initiateMoolrePayment(phone, paymentMethod) {
     }
 }
 
-function showPaymentSuccess() {
+function showPaymentSuccess(recipientPhone) {
     const modalBody = document.getElementById('modalBody');
 
     modalBody.innerHTML = `
@@ -333,6 +394,10 @@ function showPaymentSuccess() {
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                         <span style="color: var(--color-grey-600);">Bundle:</span>
                         <span style="font-weight: 600;">${currentPurchase.size}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: var(--color-grey-600);">Recipient:</span>
+                        <span style="font-weight: 600;">${recipientPhone}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span style="color: var(--color-grey-600);">Amount Paid:</span>
