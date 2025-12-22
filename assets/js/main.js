@@ -348,16 +348,9 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
         const data = await response.json();
 
         if (response.ok) {
-            // Payment initiated successfully
-            // In a real app, you would poll for status or wait for webhook
-            // For now, we keep the UI feedback loop
+            // Payment initiated successfully - now show OTP input
             console.log('Payment initiated:', data);
-
-            // Optimistic success update for demo purposes
-            // In production, you'd wait for the webhook confirmation
-            setTimeout(() => {
-                showPaymentSuccess(recipientPhone);
-            }, 15000); // Wait 15s for user to approve on phone
+            showOTPInput(paymentPhone, recipientPhone, data);
         } else {
             alert('Payment execution failed: ' + (data.error || 'Unknown error'));
             closeModal();
@@ -367,6 +360,113 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
         alert('Network error. Please check your connection.');
         closeModal();
     }
+}
+
+function showOTPInput(paymentPhone, recipientPhone, paymentData) {
+    const modalBody = document.getElementById('modalBody');
+
+    modalBody.innerHTML = `
+        <div class="payment-status">
+            <div class="status-icon">📱</div>
+            <h3 class="status-title">Enter OTP Code</h3>
+            <p class="status-message">
+                An OTP code has been sent to <strong>${paymentPhone}</strong> via SMS.
+            </p>
+            <p class="status-message" style="margin-top: 0.5rem; font-size: 0.875rem;">
+                Please enter the code below to complete your payment.
+            </p>
+            
+            <form onsubmit="submitOTP(event)" style="margin-top: 1.5rem;">
+                <div class="form-group">
+                    <label class="form-label">OTP Code</label>
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        id="otpCode" 
+                        placeholder="Enter 6-digit code" 
+                        required 
+                        maxlength="6"
+                        pattern="[0-9]{6}"
+                        style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;"
+                    >
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                    Complete Payment
+                </button>
+            </form>
+            
+            <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-grey-600);">
+                Didn't receive the code? <a href="#" onclick="resendOTP(event)" style="color: var(--color-mtn); font-weight: 600;">Resend OTP</a>
+            </p>
+        </div>
+    `;
+
+    // Store payment data for OTP submission
+    window.currentPaymentData = {
+        paymentPhone: paymentPhone,
+        recipientPhone: recipientPhone,
+        moolreData: paymentData
+    };
+}
+
+async function submitOTP(event) {
+    event.preventDefault();
+
+    const otpCode = document.getElementById('otpCode').value;
+    const paymentData = window.currentPaymentData;
+
+    if (!otpCode || otpCode.length !== 6) {
+        alert('Please enter a valid 6-digit OTP code');
+        return;
+    }
+
+    // Show processing state
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="payment-status">
+            <div class="loading-spinner"></div>
+            <h3 class="status-title">Verifying OTP...</h3>
+            <p class="status-message">Please wait while we process your payment.</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/api/verify-otp', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                otpCode: otpCode,
+                paymentPhone: paymentData.paymentPhone,
+                recipientPhone: paymentData.recipientPhone,
+                network: currentPurchase.network,
+                amount: currentPurchase.price,
+                bundle: currentPurchase.size,
+                moolreData: paymentData.moolreData
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showPaymentSuccess(paymentData.recipientPhone);
+        } else {
+            alert('OTP verification failed: ' + (data.error || 'Invalid OTP code'));
+            showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.moolreData);
+        }
+    } catch (error) {
+        console.error('OTP verification error:', error);
+        alert('Failed to verify OTP. Please try again.');
+        showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.moolreData);
+    }
+}
+
+function resendOTP(event) {
+    event.preventDefault();
+    alert('Resending OTP... (Feature coming soon)');
+    // TODO: Implement OTP resend functionality
 }
 
 function showPaymentSuccess(recipientPhone) {
