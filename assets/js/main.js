@@ -348,9 +348,25 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
         const data = await response.json();
 
         if (response.ok) {
-            // Payment initiated successfully - now show OTP input
+            // Payment initiated successfully
             console.log('Payment initiated:', data);
-            showOTPInput(paymentPhone, recipientPhone, data);
+
+            // Store data globally
+            window.currentPaymentData = {
+                paymentPhone: paymentPhone,
+                recipientPhone: recipientPhone,
+                moolreData: data.moolreData || data
+            };
+
+            // Intelligent Switch: Check message content to decide UI
+            const message = (data.message || '').toLowerCase();
+            if (message.includes('sms') || message.includes('verification') || message.includes('code')) {
+                // Moolre is asking for OTP -> Show OTP screen immediately
+                showOTPInput(paymentPhone, recipientPhone, window.currentPaymentData.moolreData);
+            } else {
+                // Otherwise assume STK Push -> Show prompt screen
+                showPaymentSuccess(recipientPhone);
+            }
         } else {
             alert('Payment execution failed: ' + (data.error || 'Unknown error'));
             closeModal();
@@ -362,18 +378,81 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
     }
 }
 
+
+
+
+function showPaymentSuccess(recipientPhone) {
+    const modalBody = document.getElementById('modalBody');
+
+    // Create container for buttons to allow dynamic switching
+    modalBody.innerHTML = `
+        <div class="payment-status">
+            <div class="status-icon">🚀</div>
+            <h3 class="status-title" style="color: var(--color-mtn);">Payment Prompt Sent!</h3>
+            <p class="status-message">
+                Please check your phone (<strong>${document.getElementById('paymentNumber').value}</strong>) and approve the transaction.
+            </p>
+            <div style="background: #FFFBEB; border: 2px solid #F59E0B; padding: 1.5rem; border-radius: var(--radius-lg); margin: 1.5rem 0;">
+                <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #B45309;">
+                    Step 1: Approve Payment on Phone
+                </p>
+                <p style="font-size: 0.875rem; color: #92400E; margin-bottom: 1rem;">
+                    Once you approve, we will automatically receive the confirmation and process your data.
+                </p>
+                <div style="background: white; padding: 1rem; border-radius: var(--radius-md);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: var(--color-grey-600);">Network:</span>
+                        <span style="font-weight: 600;">${networkNames[currentPurchase.network]}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <span style="color: var(--color-grey-600);">Bundle:</span>
+                        <span style="font-weight: 600;">${currentPurchase.size}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--color-grey-600);">Amount to Pay:</span>
+                        <span style="font-weight: 700; color: var(--color-mtn);">GH₵ ${currentPurchase.price.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <button class="btn btn-primary" onclick="closeModal()" style="width: 100%;">
+                    I have Approved the Payment
+                </button>
+                <button class="btn" onclick="switchToOTPInput()" style="width: 100%; background: var(--color-grey-200); color: var(--color-grey-800);">
+                    I received a code via SMS instead
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function switchToOTPInput() {
+    // Retrieve stored data
+    if (window.currentPaymentData) {
+        showOTPInput(
+            window.currentPaymentData.paymentPhone,
+            window.currentPaymentData.recipientPhone,
+            window.currentPaymentData.moolreData
+        );
+    } else {
+        alert("Session expired. Please try purchasing again.");
+        closeModal();
+    }
+}
+
 function showOTPInput(paymentPhone, recipientPhone, paymentData) {
     const modalBody = document.getElementById('modalBody');
 
     modalBody.innerHTML = `
         <div class="payment-status">
             <div class="status-icon">📱</div>
-            <h3 class="status-title">Enter OTP Code</h3>
+            <h3 class="status-title">Enter SMS Code</h3>
             <p class="status-message">
-                An OTP code has been sent to <strong>${paymentPhone}</strong> via SMS.
+                Moolre has sent a verification code to <strong>${paymentPhone}</strong>.
             </p>
             <p class="status-message" style="margin-top: 0.5rem; font-size: 0.875rem;">
-                Please enter the code below to complete your payment.
+                Please enter the code below to complete the payment.
             </p>
             
             <form onsubmit="submitOTP(event)" style="margin-top: 1.5rem;">
@@ -397,12 +476,12 @@ function showOTPInput(paymentPhone, recipientPhone, paymentData) {
             </form>
             
             <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-grey-600);">
-                Didn't receive the code? <a href="#" onclick="resendOTP(event)" style="color: var(--color-mtn); font-weight: 600;">Resend OTP</a>
+                Didn't receive code? <a href="#" onclick="resendOTP(event)" style="color: var(--color-mtn); font-weight: 600;">Resend OTP</a>
             </p>
         </div>
     `;
 
-    // Store payment data for OTP submission
+    // Update global state just in case
     window.currentPaymentData = {
         paymentPhone: paymentPhone,
         recipientPhone: recipientPhone,
@@ -426,8 +505,8 @@ async function submitOTP(event) {
     modalBody.innerHTML = `
         <div class="payment-status">
             <div class="loading-spinner"></div>
-            <h3 class="status-title">Verifying OTP...</h3>
-            <p class="status-message">Please wait while we process your payment.</p>
+            <h3 class="status-title">Verifying Code...</h3>
+            <p class="status-message">Processing your payment.</p>
         </div>
     `;
 
@@ -451,25 +530,19 @@ async function submitOTP(event) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showPaymentSuccess(paymentData.recipientPhone);
+            showFinalSuccess(paymentData.recipientPhone); // Use specific success screen
         } else {
-            alert('OTP verification failed: ' + (data.error || 'Invalid OTP code'));
+            alert('Verification failed: ' + (data.error || 'Invalid code'));
             showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.moolreData);
         }
     } catch (error) {
         console.error('OTP verification error:', error);
-        alert('Failed to verify OTP. Please try again.');
+        alert('Failed to verify code. Please try again.');
         showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.moolreData);
     }
 }
 
-function resendOTP(event) {
-    event.preventDefault();
-    alert('Resending OTP... (Feature coming soon)');
-    // TODO: Implement OTP resend functionality
-}
-
-function showPaymentSuccess(recipientPhone) {
+function showFinalSuccess(recipientPhone) {
     const modalBody = document.getElementById('modalBody');
 
     modalBody.innerHTML = `
@@ -483,40 +556,24 @@ function showPaymentSuccess(recipientPhone) {
                 <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #065F46;">
                     ${currentPurchase.size} data bundle is being processed
                 </p>
-                <p style="font-size: 0.875rem; color: #047857; margin-bottom: 1rem;">
-                    Estimated delivery: <strong>10-15 minutes</strong> (maximum 60 minutes)
-                </p>
                 <div style="background: white; padding: 1rem; border-radius: var(--radius-md);">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span style="color: var(--color-grey-600);">Network:</span>
-                        <span style="font-weight: 600;">${networkNames[currentPurchase.network]}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span style="color: var(--color-grey-600);">Bundle:</span>
-                        <span style="font-weight: 600;">${currentPurchase.size}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span style="color: var(--color-grey-600);">Recipient:</span>
-                        <span style="font-weight: 600;">${recipientPhone}</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: var(--color-grey-600);">Amount Paid:</span>
-                        <span style="font-weight: 700; color: var(--color-mtn);">GH₵ ${currentPurchase.price.toFixed(2)}</span>
-                    </div>
+                   <p style="color: var(--color-grey-600); font-size: 0.875rem;">
+                        Recipient: <strong>${recipientPhone}</strong>
+                   </p>
                 </div>
             </div>
-            <p style="color: var(--color-grey-600); font-size: 0.875rem; margin-bottom: 1rem;">
-                You will receive a confirmation SMS once the data is delivered.
-            </p>
             <button class="btn btn-primary" onclick="closeModal()" style="width: 100%;">
                 Done
             </button>
-            <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-grey-600);">
-                Need help? <a href="https://wa.me/233554104763" style="color: var(--color-mtn); font-weight: 600;">Contact Support</a>
-            </p>
         </div>
     `;
 }
+
+function resendOTP(event) {
+    event.preventDefault();
+    alert('Resending OTP... (Feature coming soon)');
+}
+
 
 // ===================================
 // INTERSECTION OBSERVER FOR ANIMATIONS

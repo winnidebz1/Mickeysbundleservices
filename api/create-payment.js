@@ -49,13 +49,17 @@ export default async function handler(req, res) {
         // Generate unique transaction reference
         const transactionRef = `MBS-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+        // Get client IP address
+        const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
         // Construct payload for Moolre API
         const payload = {
-            type: 1,  // Direct Debit/Momo Prompt
+            type: 1, // Standard transaction type
             channel: channel,
             currency: 'GHS',
             payer: paymentPhone, // Keep 0XX format - Moolre requires it
             amount: parseFloat(amount),
+            clientip: ip, // Sending client IP might help with trust score
             externalref: transactionRef,
             accountnumber: MOOLRE_ACCOUNT_NUMBER,
             reference: `${bundle} for ${recipientPhone}`
