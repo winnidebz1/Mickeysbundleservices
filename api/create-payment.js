@@ -11,7 +11,8 @@ export default async function handler(req, res) {
         }
 
         // Configuration
-        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY; // Using as PUBKEY for now per instructions
+        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY; // Public Key
+        const MOOLRE_PRIVATE_KEY = process.env.MOOLRE_PRIVATE_KEY;
         const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
         const MOOLRE_ACCOUNT_NUMBER = process.env.MOOLRE_ACCOUNT_NUMBER;
 
@@ -48,13 +49,20 @@ export default async function handler(req, res) {
 
         console.log('Initiating payment (Step 1):', JSON.stringify(payload));
 
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-API-USER': MOOLRE_API_USER,
+            'X-API-PUBKEY': MOOLRE_API_KEY
+        };
+
+        // If user provided a PRIVATE key, send it too (some flows need it)
+        if (MOOLRE_PRIVATE_KEY) {
+            headers['X-API-KEY'] = MOOLRE_PRIVATE_KEY;
+        }
+
         const response = await fetch('https://api.moolre.com/open/transact/payment', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-USER': MOOLRE_API_USER,
-                'X-API-PUBKEY': MOOLRE_API_KEY // User instructions say Use Public Key
-            },
+            headers: headers,
             body: JSON.stringify(payload)
         });
 
