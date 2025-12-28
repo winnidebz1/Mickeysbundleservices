@@ -330,6 +330,13 @@ function showPaymentProcessing(paymentNumber, recipientNumber, paymentMethod) {
 }
 
 async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod) {
+    // Map dropdown values to backend codes
+    const paymentMethodMap = {
+        'mtn-momo': 'mtn',
+        'telecel-cash': 'telecel',
+        'airteltigo-money': 'airteltigo'
+    };
+
     try {
         const response = await fetch('/api/create-payment', {
             method: 'POST',
@@ -339,7 +346,7 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
             body: JSON.stringify({
                 paymentPhone: paymentPhone,
                 recipientPhone: recipientPhone,
-                network: currentPurchase.network,
+                network: paymentMethodMap[paymentMethod] || currentPurchase.network,
                 amount: currentPurchase.price,
                 bundle: currentPurchase.size
             })
@@ -351,8 +358,20 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
             // Payment initiated successfully
             console.log('Payment initiated:', data);
 
-            // Show processing screen - TheTeller sends STK Push
-            showPaymentSuccess(recipientPhone);
+            // Store Reference needed for OTP
+            window.currentPaymentData = {
+                paymentPhone: paymentPhone,
+                recipientPhone: recipientPhone,
+                paystackReference: data.transactionRef || data.paystackReference
+            };
+
+            // Check if OTP is required immediately
+            if (data.requireOtp) {
+                showOTPInput(paymentPhone, recipientPhone, data.transactionRef);
+            } else {
+                // Show processing screen - STK Push sent
+                showPaymentSuccess(recipientPhone);
+            }
         } else {
             alert('Payment execution failed: ' + (data.error || 'Unknown error'));
             closeModal();
@@ -427,7 +446,7 @@ function switchToOTPInput() {
     }
 }
 
-function showOTPInput(paymentPhone, recipientPhone, paymentData) {
+function showOTPInput(paymentPhone, recipientPhone, reference) {
     const modalBody = document.getElementById('modalBody');
 
     modalBody.innerHTML = `
@@ -435,7 +454,7 @@ function showOTPInput(paymentPhone, recipientPhone, paymentData) {
             <div class="status-icon">📱</div>
             <h3 class="status-title">Enter SMS Code</h3>
             <p class="status-message">
-                Moolre has sent a verification code to <strong>${paymentPhone}</strong>.
+                A verification code has been sent to <strong>${paymentPhone}</strong>.
             </p>
             <p class="status-message" style="margin-top: 0.5rem; font-size: 0.875rem;">
                 Please enter the code below to complete the payment.
@@ -450,8 +469,7 @@ function showOTPInput(paymentPhone, recipientPhone, paymentData) {
                         id="otpCode" 
                         placeholder="Enter 6-digit code" 
                         required 
-                        maxlength="6"
-                        pattern="[0-9]{6}"
+                        maxlength="10"
                         style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;"
                     >
                 </div>
@@ -467,11 +485,11 @@ function showOTPInput(paymentPhone, recipientPhone, paymentData) {
         </div>
     `;
 
-    // Update global state just in case
+    // Update global state
     window.currentPaymentData = {
         paymentPhone: paymentPhone,
         recipientPhone: recipientPhone,
-        moolreData: paymentData
+        paystackReference: reference
     };
 }
 
@@ -481,8 +499,8 @@ async function submitOTP(event) {
     const otpCode = document.getElementById('otpCode').value;
     const paymentData = window.currentPaymentData;
 
-    if (!otpCode || otpCode.length !== 6) {
-        alert('Please enter a valid 6-digit OTP code');
+    if (!otpCode) {
+        alert('Please enter a valid OTP code');
         return;
     }
 
@@ -492,7 +510,7 @@ async function submitOTP(event) {
         <div class="payment-status">
             <div class="loading-spinner"></div>
             <h3 class="status-title">Verifying Code...</h3>
-            <p class="status-message">Processing your payment.</p>
+            <p class="status-message">Processing your payment locally.</p>
         </div>
     `;
 
@@ -504,27 +522,22 @@ async function submitOTP(event) {
             },
             body: JSON.stringify({
                 otpCode: otpCode,
-                paymentPhone: paymentData.paymentPhone,
-                recipientPhone: paymentData.recipientPhone,
-                network: currentPurchase.network,
-                amount: currentPurchase.price,
-                bundle: currentPurchase.size,
-                moolreData: paymentData.moolreData
+                paystackReference: paymentData.paystackReference
             })
         });
 
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showFinalSuccess(paymentData.recipientPhone); // Use specific success screen
+            showFinalSuccess(paymentData.recipientPhone);
         } else {
             alert('Verification failed: ' + (data.error || 'Invalid code'));
-            showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.moolreData);
+            showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.paystackReference);
         }
     } catch (error) {
         console.error('OTP verification error:', error);
         alert('Failed to verify code. Please try again.');
-        showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.moolreData);
+        showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.paystackReference);
     }
 }
 
