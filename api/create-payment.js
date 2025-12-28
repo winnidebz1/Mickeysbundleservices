@@ -11,22 +11,20 @@ export default async function handler(req, res) {
         }
 
         // Configuration
-        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY; // Public Key
-        const MOOLRE_PRIVATE_KEY = process.env.MOOLRE_PRIVATE_KEY;
-        const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
-        const MOOLRE_ACCOUNT_NUMBER = process.env.MOOLRE_ACCOUNT_NUMBER;
+        const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
-        if (!MOOLRE_API_KEY || !MOOLRE_API_USER || !MOOLRE_ACCOUNT_NUMBER) {
-            console.error('Moolre credentials incomplete');
-            return res.status(500).json({ error: 'Server configuration error: Missing API User or Account Number' });
+        if (!PAYSTACK_SECRET_KEY) {
+            console.error('Paystack credentials not set');
+            return res.status(500).json({ error: 'Server configuration error: Missing Paystack Key' });
         }
 
-        // Map network to Moolre codes
+        // Map network to Paystack codes
+        // Paystack GH Codes: 'mtn', 'vod', 'tgo'
         const networkMap = {
-            'mtn': 'MTN',
-            'mtn-afa': 'MTN',
-            'airteltigo': 'AIRTELTIGO',
-            'telecel': 'VODAFONE'
+            'mtn': 'mtn',
+            'mtn-afa': 'mtn',
+            'airteltigo': 'tgo',
+            'telecel': 'vod' // Telecel/Vodafone
         };
 
         const provider = networkMap[network];
@@ -35,66 +33,70 @@ export default async function handler(req, res) {
         }
 
         const transactionRef = `MBS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const email = "customer@mickeysbundles.com"; // Required by Paystack
 
+        // Paystack Charge Payload for Mobile Money
         const payload = {
-            "type": "1", // Must be 1
-            "channel": provider,
+            "email": email,
+            "amount": amount * 100, // Paystack is in Pesewas (Multiply by 100)
             "currency": "GHS",
-            "payer": paymentPhone,
-            "amount": amount,
-            "externalref": transactionRef,
-            "reference": `${bundle} Bundle`,
-            "accountnumber": MOOLRE_ACCOUNT_NUMBER // Required
+            "mobile_money": {
+                "phone": paymentPhone,
+                "provider": provider
+            },
+            "reference": transactionRef,
+            "metadata": {
+                "custom_fields": [
+                    { "display_name": "Bundle", "variable_name": "bundle", "value": bundle },
+                    { "display_name": "Recipient", "variable_name": "recipient_phone", "value": recipientPhone }
+                ]
+            }
         };
 
-        console.log('Initiating payment (Step 1):', JSON.stringify(payload));
+        console.log('Initiating Paystack Charge:', JSON.stringify(payload));
 
-        const headers = {
-            'Content-Type': 'application/json',
-            'X-API-USER': MOOLRE_API_USER,
-            'X-API-PUBKEY': MOOLRE_API_KEY
-        };
-
-        // If user provided a PRIVATE key, send it too (some flows need it)
-        if (MOOLRE_PRIVATE_KEY) {
-            headers['X-API-KEY'] = MOOLRE_PRIVATE_KEY;
-        }
-
-        const response = await fetch('https://api.moolre.com/open/transact/payment', {
+        const response = await fetch('https://api.paystack.co/charge', {
             method: 'POST',
-            headers: headers,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`
+            },
             body: JSON.stringify(payload)
         });
 
         const text = await response.text();
-        console.log('Moolre Raw Response:', text);
+        console.log('Paystack Raw Response:', text);
 
         let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
-            console.error('Moolre Response Parse Error:', e);
             throw new Error(`Gateway Error (${response.status}): ${text.substring(0, 100)}`);
         }
 
-        // Handle OTP Requirement (Code TP14)
-        if (data.code === 'TP14') {
-            return res.status(200).json({
-                success: true,
-                requireOtp: true,
-                message: 'OTP sent to customer',
-                transactionRef: transactionRef,
-                moolreData: payload // Pass payload back to frontend to re-submit with OTP
-            });
-        }
+        if (data.status === true) {
+            // Check specific charge status
+            const chargeData = data.data;
 
-        if (response.ok && (data.status === 'success' || data.code === '00')) {
-            return res.status(200).json({
-                success: true,
-                transactionRef: transactionRef,
-                message: 'Payment prompt sent successfully',
-                gatewayResponse: data
-            });
+            if (chargeData.status === 'success' || chargeData.status === 'pending' || chargeData.status === 'queued') {
+                return res.status(200).json({
+                    success: true,
+                    transactionRef: transactionRef,
+                    message: chargeData.display_text || 'Payment prompt sent successfully',
+                    gatewayResponse: data
+                });
+            } else if (chargeData.status === 'send_otp') {
+                // Vodafone OTP flow
+                return res.status(200).json({
+                    success: true,
+                    requireOtp: true,
+                    message: chargeData.display_text,
+                    transactionRef: transactionRef,
+                    paystackReference: chargeData.reference
+                });
+            } else {
+                return res.status(400).json({ error: chargeData.message || 'Payment processing failed' });
+            }
         } else {
             return res.status(400).json({
                 error: data.message || 'Payment initiation failed',

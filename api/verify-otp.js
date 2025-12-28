@@ -4,60 +4,48 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { otpCode, paymentPhone, recipientPhone, moolreData } = req.body;
+        const { otpCode, paystackReference } = req.body;
 
-        if (!otpCode || !moolreData) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!otpCode || !paystackReference) {
+            return res.status(400).json({ error: 'Missing OTP or Payment Reference' });
         }
 
-        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY;
-        const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
+        const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
-        // Step 3: Verify OTP by resending payload with otpcode
-        const payload = { ...moolreData, otpcode: otpCode };
+        console.log('Submitting OTP to Paystack:', paystackReference);
 
-        console.log('Verifying OTP (Step 3):', JSON.stringify(payload));
-
-        const response = await fetch('https://api.moolre.com/open/transact/payment', {
+        const response = await fetch('https://api.paystack.co/charge/submit_otp', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-API-USER': MOOLRE_API_USER,
-                'X-API-PUBKEY': MOOLRE_API_KEY
+                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                otp: otpCode,
+                reference: paystackReference
+            })
         });
 
-        const data = await response.json();
-        console.log('OTP Verification Response:', JSON.stringify(data));
+        const text = await response.text();
+        console.log('Paystack OTP Response:', text);
 
-        if (data.status === 'success' || data.code === '00' || data.code === 'TP14-SUCCESS') {
-            // OTP Verified. Now Step 5: Trigger actual payment (Optional if Moolre does it auto? Docs say "Trigger Payment Prompt")
-            // Docs say: "Pass all required parameters to this endpoint again (without OTP) to initiate the actual payment request."
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Gateway Error (${response.status}): ${text.substring(0, 100)}`);
+        }
 
-            // Let's trigger step 5
-            const finalPayload = { ...moolreData }; // Original payload without OTP
-            console.log('Triggering Payment (Step 5)...');
-
-            const finalResponse = await fetch('https://api.moolre.com/open/transact/payment', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-USER': MOOLRE_API_USER,
-                    'X-API-PUBKEY': MOOLRE_API_KEY
-                },
-                body: JSON.stringify(finalPayload)
-            });
-
-            const finalData = await finalResponse.json();
-            console.log('Final Payment Trigger Response:', JSON.stringify(finalData));
-
-            if (finalData.status === 'success' || finalData.code === '00') {
-                return res.status(200).json({ success: true, message: 'Payment prompt sent' });
+        if (data.status === true) {
+            const chargeData = data.data;
+            if (chargeData.status === 'success' || chargeData.status === 'pending') {
+                return res.status(200).json({
+                    success: true,
+                    message: chargeData.display_text || 'Payment completed successfully'
+                });
             } else {
-                return res.status(400).json({ error: finalData.message || 'Payment trigger failed' });
+                return res.status(400).json({ error: chargeData.message || 'OTP Verification failed' });
             }
-
         } else {
             return res.status(400).json({ error: data.message || 'OTP Verification failed' });
         }

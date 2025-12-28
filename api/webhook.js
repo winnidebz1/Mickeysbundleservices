@@ -1,45 +1,79 @@
+const crypto = require('crypto');
+
+// Helper function to handle bundle delivery
+async function deliverBundle(order) {
+    if (!order) return;
+
+    console.log('🚚 Delivering Bundle:', order.bundle, 'to', order.recipientPhone);
+
+    // In production, verify BUNDLE_API_URL exists
+    const BUNDLE_API_URL = process.env.BUNDLE_API_URL;
+    const BUNDLE_API_KEY = process.env.BUNDLE_API_KEY;
+
+    if (!BUNDLE_API_URL || BUNDLE_API_URL.includes('your-bundle-provider')) {
+        console.log('⚠️ Bundle API URL not configured. Simulating delivery only.');
+        return true;
+    }
+
+    try {
+        // Example call to provider
+        // const response = await fetch(BUNDLE_API_URL, { ... });
+        // console.log('Provider Response:', await response.json());
+    } catch (e) {
+        console.error('Failed to call bundle provider:', e);
+    }
+
+    return true;
+}
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        const webhookData = req.body;
-        console.log('Moolre Webhook received:', JSON.stringify(webhookData, null, 2));
+        // PER PAYSTACK DOCS: Verify Signature
+        const secret = process.env.PAYSTACK_SECRET_KEY;
+        if (!secret) {
+            console.error('PAYSTACK_SECRET_KEY not set');
+            return res.status(500).send('Server Config Error');
+        }
 
-        // Moolre Validation Logic
-        // Moolre typically sends { status: 'success', reference: '...', ... }
+        const hash = crypto.createHmac('sha512', secret)
+            .update(JSON.stringify(req.body))
+            .digest('hex');
 
-        const { status, reference, transaction_id, amount, customer_number } = webhookData;
+        if (hash !== req.headers['x-paystack-signature']) {
+            return res.status(400).send('Invalid Signature');
+        }
 
-        // 1. Check Status
-        if (status === 'success' || status === 'successful' || status === 1) {
-            console.log('✅ Payment successful for:', reference);
+        const event = req.body;
 
-            // 2. (Optional) Verify with Moolre API if needed
-            // const verified = await verifyMoolreTransaction(reference);
+        if (event.event === 'charge.success') {
+            const data = event.data;
+            const reference = data.reference;
 
+            // Extract metadata if available
+            const metadata = data.metadata || {};
+            const customFields = metadata.custom_fields || [];
+
+            // Build order object
             const order = {
-                id: reference || transaction_id,
-                bundle: "Unknown (Check Description)", // Moolre might not send description back in webhook
+                id: reference,
+                recipientPhone: customFields.find(f => f.variable_name === 'recipient_phone')?.value || data.customer?.phone,
+                bundle: customFields.find(f => f.variable_name === 'bundle')?.value || 'Unknown Bundle',
+                amount: data.amount / 100, // Convert pesewas back to GHS
                 network: 'Mobile Money',
-                recipientPhone: customer_number || 'Unknown',
-                paymentPhone: customer_number || 'Unknown',
-                amount: amount,
-                timestamp: new Date().toISOString(),
-                status: 'paid'
+                date: new Date().toISOString(),
+                status: 'Completed'
             };
 
-            // 3. Logic to extract bundle info if passed in metadata or description
-            // If Moolre passes custom metadata, retrieve it here.
-
-            console.log('📦 COMPLETING ORDER (MOOLRE):');
-            console.log(JSON.stringify(order, null, 2));
+            console.log('✅ Payment Successful:', reference);
 
             // Deliver Bundle
             await deliverBundle(order);
 
-            // Update internal list
+            // Sync with local DB / Admin Dashboard
             try {
                 const protocol = req.headers['x-forwarded-proto'] || 'http';
                 const host = req.headers.host;
@@ -50,28 +84,11 @@ export default async function handler(req, res) {
                     body: JSON.stringify({ action: 'add', order })
                 });
             } catch (e) { console.warn("Internal sync failed", e.message); }
-
-        } else {
-            console.log('❌ Payment failed/pending:', reference);
         }
 
-        return res.status(200).json({ success: true });
-
+        res.status(200).send('Webhook received');
     } catch (error) {
         console.error('Webhook Error:', error);
-        return res.status(200).json({ success: true }); // Always 200 to satisfy webhook sender
+        res.status(500).json({ error: error.message });
     }
-}
-
-async function deliverBundle(order) {
-    // Bundle delivery logic here
-    const BUNDLE_API_URL = process.env.BUNDLE_API_URL;
-    const BUNDLE_API_KEY = process.env.BUNDLE_API_KEY;
-
-    if (!BUNDLE_API_URL) {
-        console.log('Simulating Bundle Delivery...');
-        return;
-    }
-
-    // Call Provider
 }
