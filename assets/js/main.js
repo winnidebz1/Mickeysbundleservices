@@ -358,10 +358,11 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
             // Payment initiated successfully
             console.log('Payment initiated:', data);
 
-            // Store Reference needed for OTP
+            // Store Reference and Details for OTP/Retry
             window.currentPaymentData = {
                 paymentPhone: paymentPhone,
                 recipientPhone: recipientPhone,
+                paymentMethod: paymentMethod,
                 paystackReference: data.transactionRef || data.paystackReference
             };
 
@@ -438,7 +439,7 @@ function switchToOTPInput() {
         showOTPInput(
             window.currentPaymentData.paymentPhone,
             window.currentPaymentData.recipientPhone,
-            window.currentPaymentData.moolreData
+            window.currentPaymentData.paystackReference
         );
     } else {
         alert("Session expired. Please try purchasing again.");
@@ -570,7 +571,27 @@ function showFinalSuccess(recipientPhone) {
 
 function resendOTP(event) {
     event.preventDefault();
-    alert('Resending OTP... (Feature coming soon)');
+
+    const data = window.currentPaymentData;
+
+    if (data && data.paymentMethod && data.paymentPhone) {
+        // Update UI to show we are working
+        const modalBody = document.getElementById('modalBody');
+        modalBody.innerHTML = `
+            <div class="payment-status">
+                <div class="loading-spinner"></div>
+                <h3 class="status-title">Resending...</h3>
+                <p class="status-message">Initiating a new payment request to ${data.paymentPhone}.</p>
+                <p class="status-message" style="font-size: 0.875rem; color: var(--color-grey-600);">Please check your phone for a new prompt or code.</p>
+            </div>
+        `;
+
+        // Re-initiate the payment flow (creates new charge = new OTP/Prompt)
+        initiateMoolrePayment(data.paymentPhone, data.recipientPhone, data.paymentMethod);
+    } else {
+        alert('Session expired. Please start the purchase again.');
+        closeModal();
+    }
 }
 
 
