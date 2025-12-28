@@ -33,10 +33,9 @@ Get your API credentials from your chosen provider.
 3. Add the following variables:
 
 ```bash
-# Get these from Moolre Dashboard > Settings
-MOOLRE_API_KEY=your_public_api_key
-MOOLRE_API_USER=your_moolre_username
-MOOLRE_ACCOUNT_NUMBER=your_moolre_wallet_number
+# Get these from Paystack Dashboard > Settings > API Keys
+PAYSTACK_SECRET_KEY=sk_live_xxxxxxxxxxxxxxxxxxxxx
+PAYSTACK_PUBLIC_KEY=pk_live_xxxxxxxxxxxxxxxxxxxxx
 
 ADMIN_WEBHOOK_URL=https://your-domain.vercel.app/api/webhook
 BUNDLE_API_KEY=your_bundle_provider_api_key
