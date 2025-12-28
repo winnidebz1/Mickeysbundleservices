@@ -11,12 +11,13 @@ export default async function handler(req, res) {
         }
 
         // Configuration
-        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY;
-        // const MOOLRE_MERCHANT_ID = process.env.MOOLRE_MERCHANT_ID; // If needed
+        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY; // Using as PUBKEY for now per instructions
+        const MOOLRE_API_USER = process.env.MOOLRE_API_USER;
+        const MOOLRE_ACCOUNT_NUMBER = process.env.MOOLRE_ACCOUNT_NUMBER;
 
-        if (!MOOLRE_API_KEY) {
-            console.error('Moolre credentials not set');
-            return res.status(500).json({ error: 'Server configuration error' });
+        if (!MOOLRE_API_KEY || !MOOLRE_API_USER || !MOOLRE_ACCOUNT_NUMBER) {
+            console.error('Moolre credentials incomplete');
+            return res.status(500).json({ error: 'Server configuration error: Missing API User or Account Number' });
         }
 
         // Map network to Moolre codes
@@ -35,41 +36,56 @@ export default async function handler(req, res) {
         const transactionRef = `MBS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         const payload = {
-            "account_number": paymentPhone,
+            "type": "1", // Must be 1
+            "channel": provider,
+            "currency": "GHS",
+            "payer": paymentPhone,
             "amount": amount,
-            "network": provider,
-            "reference": transactionRef,
-            "description": `${bundle} Bundle for ${recipientPhone}`,
-            // "channel": "mobile_money" // Common field
+            "externalref": transactionRef,
+            "reference": `${bundle} Bundle`,
+            "accountnumber": MOOLRE_ACCOUNT_NUMBER // Required
         };
 
-        console.log('Initiating payment with Moolre:', JSON.stringify(payload));
+        console.log('Initiating payment (Step 1):', JSON.stringify(payload));
 
-        // Use the official Moolre API Endpoint
-        // Note: Please verify the exact endpoint in your Moolre dashboard documentation
-        // It is often /v1/payments/mobile-money or similar.
-        const response = await fetch('https://api.moolre.com/v1/payments/collection', {
+        const response = await fetch('https://api.moolre.com/open/transact/payment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${MOOLRE_API_KEY}`, // Or X-API-KEY: MOOLRE_API_KEY
-                // 'X-API-KEY': MOOLRE_API_KEY 
+                'X-API-USER': MOOLRE_API_USER,
+                'X-API-PUBKEY': MOOLRE_API_KEY // User instructions say Use Public Key
             },
             body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
-        console.log('Moolre Response:', JSON.stringify(data));
+        const text = await response.text();
+        console.log('Moolre Raw Response:', text);
+
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Moolre Response Parse Error:', e);
+            throw new Error(`Gateway Error (${response.status}): ${text.substring(0, 100)}`);
+        }
+
+        // Handle OTP Requirement (Code TP14)
+        if (data.code === 'TP14') {
+            return res.status(200).json({
+                success: true,
+                requireOtp: true,
+                message: 'OTP sent to customer',
+                transactionRef: transactionRef,
+                moolreData: payload // Pass payload back to frontend to re-submit with OTP
+            });
+        }
 
         if (response.ok && (data.status === 'success' || data.code === '00')) {
             return res.status(200).json({
                 success: true,
                 transactionRef: transactionRef,
                 message: 'Payment prompt sent successfully',
-                gatewayResponse: data,
-                recipientPhone,
-                bundle,
-                network
+                gatewayResponse: data
             });
         } else {
             return res.status(400).json({
@@ -77,7 +93,6 @@ export default async function handler(req, res) {
                 details: data
             });
         }
-
     } catch (error) {
         console.error('Order Error:', error);
         return res.status(500).json({ error: error.message });

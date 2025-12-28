@@ -32,8 +32,12 @@ Get your API credentials from your chosen provider.
 2. Navigate to **Settings** → **Environment Variables**
 3. Add the following variables:
 
-```
-MOOLRE_API_KEY=your_moolre_api_key_here
+```bash
+# Get these from Moolre Dashboard > Settings
+MOOLRE_API_KEY=your_public_api_key
+MOOLRE_API_USER=your_moolre_username
+MOOLRE_ACCOUNT_NUMBER=your_moolre_wallet_number
+
 ADMIN_WEBHOOK_URL=https://your-domain.vercel.app/api/webhook
 BUNDLE_API_KEY=your_bundle_provider_api_key
 BUNDLE_API_URL=https://api.your-bundle-provider.com/deliver
@@ -154,8 +158,11 @@ Receives payment confirmations from Moolre (called automatically)
 
 ## Troubleshooting
 
-### Payment Not Initiating
-- Check if `MOOLRE_API_KEY` is set correctly
+### Payment Not Initiating / Server Configuration Error
+- **Error: "Server configuration error"**: This means `MOOLRE_API_KEY` is missing.
+  1. Create a file named `.env.local` in the project root.
+  2. Add: `MOOLRE_API_KEY=your_actual_key`
+  3. Restart your local server.
 - Verify phone number format (should be 10 digits starting with 0)
 - Check Vercel function logs for errors
 
