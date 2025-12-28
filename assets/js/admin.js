@@ -322,9 +322,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Load initial dashboard
     loadDashboard();
+    fetchRealOrders(); // Fetch real data
 
     // Auto-refresh pending orders every 30 seconds
     setInterval(() => {
+        fetchRealOrders(); // Poll for new orders
         const currentSection = document.querySelector('.admin-section.active');
         if (currentSection && currentSection.id === 'pending-section') {
             loadPendingOrders();
@@ -332,6 +334,57 @@ document.addEventListener('DOMContentLoaded', function () {
         updateStats(); // Update stats badge
     }, 30000); // 30 seconds
 });
+
+// ===================================
+// DATA FETCHING
+// ===================================
+async function fetchRealOrders() {
+    try {
+        const response = await fetch('/api/orders');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.success && data.orders) {
+            let hasNew = false;
+            data.orders.forEach(order => {
+                const exists = transactions.some(t => t.id === order.id);
+                if (!exists) {
+                    // Parse amount if it's the 12-digit string
+                    let amt = parseFloat(order.amount);
+                    if (order.amount && typeof order.amount === 'string' && order.amount.length === 12) {
+                        amt = amt / 100;
+                    }
+
+                    transactions.unshift({
+                        id: order.id,
+                        date: new Date(order.timestamp || Date.now()),
+                        phone: order.paymentPhone,
+                        network: order.network,
+                        bundle: order.bundle,
+                        paymentMethod: 'Mobile Money',
+                        amount: amt || 0,
+                        status: order.status === 'paid' ? 'successful' : order.status
+                    });
+                    hasNew = true;
+                }
+            });
+
+            if (hasNew) {
+                // Refresh current view if needed
+                updateStats();
+                const currentSection = document.querySelector('.admin-section.active');
+                if (currentSection) {
+                    const sectionName = currentSection.id.replace('-section', '');
+                    if (sectionName === 'dashboard') loadDashboard();
+                    if (sectionName === 'transactions') loadAllTransactions();
+                    if (sectionName === 'pending') loadPendingOrders();
+                }
+            }
+        }
+    } catch (e) {
+        console.log("Local API not available or empty");
+    }
+}
 
 function filterTransactions() {
     const searchTerm = document.getElementById('searchTransactions')?.value.toLowerCase() || '';

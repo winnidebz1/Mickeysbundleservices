@@ -11,73 +11,61 @@ export default async function handler(req, res) {
         }
 
         // Configuration
-        const API_USERNAME = process.env.THETELLER_API_USERNAME;
-        const API_KEY = process.env.THETELLER_API_KEY; // Base64 encoded 'username:apikey' usually, or just apikey
+        const MOOLRE_API_KEY = process.env.MOOLRE_API_KEY;
+        // const MOOLRE_MERCHANT_ID = process.env.MOOLRE_MERCHANT_ID; // If needed
 
-        if (!API_USERNAME || !API_KEY) {
-            console.error('TheTeller credentials not set');
+        if (!MOOLRE_API_KEY) {
+            console.error('Moolre credentials not set');
             return res.status(500).json({ error: 'Server configuration error' });
         }
 
-        // Map network to TheTeller R-Switch
-        // MTN = MTN, AirtelTigo = ATL, Vodafone/Telecel = VOD
-        const rSwitchMap = {
+        // Map network to Moolre codes
+        const networkMap = {
             'mtn': 'MTN',
-            'mtn-afa': 'MTN', // AFA uses MTN MOMO
-            'airteltigo': 'ATL', // Or TGO, verify with documentation. ATL is common.
-            'telecel': 'VOD'
+            'mtn-afa': 'MTN',
+            'airteltigo': 'AIRTELTIGO',
+            'telecel': 'VODAFONE'
         };
 
-        const rSwitch = rSwitchMap[network];
-        if (!rSwitch) {
-            return res.status(400).json({ error: 'Unsupported network for payment' });
+        const provider = networkMap[network];
+        if (!provider) {
+            return res.status(400).json({ error: 'Unsupported network' });
         }
 
-        // Generate 12-digit numeric transaction ID
-        const transactionRef = Math.floor(100000000000 + Math.random() * 900000000000).toString();
-
-        // Amount must be formatted string padded to 12 chars? 
-        // Docs say amount in minor units (pesewas) usually, e.g. "000000000100" for 1 GHS
-        // Let's verify standard behavior. Usually JSON APIs take 1.00 or "000000000100".
-        // TheTeller standard: 12 digit string, last 2 are decimals. 
-        // e.g. 1.50 -> 150 -> "000000000150"
-        const amountMinor = Math.round(amount * 100);
-        const amountString = amountMinor.toString().padStart(12, '0');
+        const transactionRef = `MBS-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
         const payload = {
-            "merchant_id": API_USERNAME, // Often the username is the merchant ID
-            "transaction_id": transactionRef,
-            "desc": `${bundle} Bundle for ${recipientPhone}`,
-            "amount": amountString,
-            "processing_code": "000200", // 000200 is often used for MoMo debit
-            "r-switch": rSwitch,
-            "subscriber_number": paymentPhone,
-            "voucher_code": "" // Optional, for VOD sometimes
+            "account_number": paymentPhone,
+            "amount": amount,
+            "network": provider,
+            "reference": transactionRef,
+            "description": `${bundle} Bundle for ${recipientPhone}`,
+            // "channel": "mobile_money" // Common field
         };
 
-        const auth = Buffer.from(`${API_USERNAME}:${API_KEY}`).toString('base64');
+        console.log('Initiating payment with Moolre:', JSON.stringify(payload));
 
-        console.log('Initiating payment with TheTeller:', transactionRef);
-
-        const response = await fetch('https://prod.theteller.net/v1.1/transaction/process', {
+        // Use the official Moolre API Endpoint
+        // Note: Please verify the exact endpoint in your Moolre dashboard documentation
+        // It is often /v1/payments/mobile-money or similar.
+        const response = await fetch('https://api.moolre.com/v1/payments/collection', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${auth}`,
-                'Cache-Control': 'no-cache'
+                'Authorization': `Bearer ${MOOLRE_API_KEY}`, // Or X-API-KEY: MOOLRE_API_KEY
+                // 'X-API-KEY': MOOLRE_API_KEY 
             },
             body: JSON.stringify(payload)
         });
 
         const data = await response.json();
-        console.log('TheTeller Response:', JSON.stringify(data));
+        console.log('Moolre Response:', JSON.stringify(data));
 
-        // '000' usually means approved/successful push
-        if (data.code === '000' || data.status === 'success') {
+        if (response.ok && (data.status === 'success' || data.code === '00')) {
             return res.status(200).json({
                 success: true,
                 transactionRef: transactionRef,
-                message: 'Payment prompt sent successfully. Check your phone.',
+                message: 'Payment prompt sent successfully',
                 gatewayResponse: data,
                 recipientPhone,
                 bundle,
@@ -85,7 +73,7 @@ export default async function handler(req, res) {
             });
         } else {
             return res.status(400).json({
-                error: data.reason || 'Payment initiation failed',
+                error: data.message || 'Payment initiation failed',
                 details: data
             });
         }

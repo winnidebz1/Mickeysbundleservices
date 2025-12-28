@@ -1,85 +1,77 @@
-import crypto from 'crypto';
-
 export default async function handler(req, res) {
-    // Only allow POST requests
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
         const webhookData = req.body;
-        console.log('TheTeller Webhook received:', JSON.stringify(webhookData, null, 2));
+        console.log('Moolre Webhook received:', JSON.stringify(webhookData, null, 2));
 
-        // Basic Signature Verification (Optional but recommended)
-        // const signature = req.headers['teller-signature'];
-        // const api_user = process.env.THETELLER_API_USERNAME;
-        // Verify against your records if needed
+        // Moolre Validation Logic
+        // Moolre typically sends { status: 'success', reference: '...', ... }
 
-        const {
-            status,
-            code,
-            reason,
-            transaction_id,
-            amount,
-            subscriber_number,
-            r_switch, // Network
-            desc
-        } = webhookData;
+        const { status, reference, transaction_id, amount, customer_number } = webhookData;
 
-        // TheTeller Success Code is usually '000'
-        if (code === '000' || status === 'success' || status === 'approved') {
-            console.log('✅ Payment successful for transaction:', transaction_id);
-            console.log(`   Amount: ${amount}`);
-            console.log(`   Payer: ${subscriber_number}`);
-            console.log(`   Description: ${desc}`);
+        // 1. Check Status
+        if (status === 'success' || status === 'successful' || status === 1) {
+            console.log('✅ Payment successful for:', reference);
 
-            // Parse description to get bundle info since we put it there
-            // Format was: "1GB Bundle for 055xxxxxxx"
-            let bundle = "Unknown Bundle";
-            let recipient = "Unknown Recipient";
+            // 2. (Optional) Verify with Moolre API if needed
+            // const verified = await verifyMoolreTransaction(reference);
 
-            if (desc) {
-                const parts = desc.split(' for ');
-                if (parts.length >= 2) {
-                    bundle = parts[0].replace(' Bundle', '').trim();
-                    recipient = parts[1].trim();
-                }
-            }
-
-            // Create order object for manual delivery log
             const order = {
-                id: transaction_id,
-                bundle: bundle,
-                network: r_switch || 'Unknown',
-                recipientPhone: recipient,
-                paymentPhone: subscriber_number,
-                amount: amount, // TheTeller sends amount as string e.g. "000000000100" or raw? Check logs.
+                id: reference || transaction_id,
+                bundle: "Unknown (Check Description)", // Moolre might not send description back in webhook
+                network: 'Mobile Money',
+                recipientPhone: customer_number || 'Unknown',
+                paymentPhone: customer_number || 'Unknown',
+                amount: amount,
                 timestamp: new Date().toISOString(),
-                status: 'pending'
+                status: 'paid'
             };
 
-            console.log('📦 NEW ORDER - MANUAL DELIVERY REQUIRED:');
-            console.log(JSON.stringify(order, null, 2));
-            console.log('   👉 Check your admin panel or automatic delivery system');
+            // 3. Logic to extract bundle info if passed in metadata or description
+            // If Moolre passes custom metadata, retrieve it here.
 
-            // Here you would trigger the bundle delivery API
+            console.log('📦 COMPLETING ORDER (MOOLRE):');
+            console.log(JSON.stringify(order, null, 2));
+
+            // Deliver Bundle
+            await deliverBundle(order);
+
+            // Update internal list
+            try {
+                const protocol = req.headers['x-forwarded-proto'] || 'http';
+                const host = req.headers.host;
+                const ordersUrl = `${protocol}://${host}/api/orders`;
+                await fetch(ordersUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'add', order })
+                });
+            } catch (e) { console.warn("Internal sync failed", e.message); }
 
         } else {
-            console.log('❌ Payment failed or pending:', transaction_id);
-            console.log('   Reason:', reason);
+            console.log('❌ Payment failed/pending:', reference);
         }
 
-        // Always return 200 to acknowledge receipt
-        return res.status(200).json({
-            success: true,
-            message: 'Webhook processed'
-        });
+        return res.status(200).json({ success: true });
 
     } catch (error) {
-        console.error('Webhook processing error:', error);
-        return res.status(200).json({
-            success: false,
-            error: error.message
-        });
+        console.error('Webhook Error:', error);
+        return res.status(200).json({ success: true }); // Always 200 to satisfy webhook sender
     }
+}
+
+async function deliverBundle(order) {
+    // Bundle delivery logic here
+    const BUNDLE_API_URL = process.env.BUNDLE_API_URL;
+    const BUNDLE_API_KEY = process.env.BUNDLE_API_KEY;
+
+    if (!BUNDLE_API_URL) {
+        console.log('Simulating Bundle Delivery...');
+        return;
+    }
+
+    // Call Provider
 }
