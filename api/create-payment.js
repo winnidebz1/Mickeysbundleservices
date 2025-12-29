@@ -77,26 +77,37 @@ export default async function handler(req, res) {
         if (data.status === true) {
             // Check specific charge status
             const chargeData = data.data;
+            const status = chargeData.status;
 
-            if (chargeData.status === 'success' || chargeData.status === 'pending' || chargeData.status === 'queued') {
-                return res.status(200).json({
-                    success: true,
-                    transactionRef: transactionRef,
-                    message: chargeData.display_text || 'Payment prompt sent successfully',
-                    gatewayResponse: data
-                });
-            } else if (chargeData.status === 'send_otp') {
-                // Vodafone OTP flow
+            console.log(`Paystack Charge Status: ${status}`);
+
+            // If it requires OTP
+            if (status === 'send_otp' || status === 'otp') {
                 return res.status(200).json({
                     success: true,
                     requireOtp: true,
                     message: chargeData.display_text,
                     transactionRef: transactionRef,
-                    paystackReference: chargeData.reference
+                    paystackReference: chargeData.reference,
+                    rawStatus: status
                 });
-            } else {
-                return res.status(400).json({ error: chargeData.message || 'Payment processing failed' });
             }
+
+            // For ALL other statuses (pending, queued, open, processing, success), treat as Success
+            // blocked/failed/abandoned would likely have data.status === false or be handled here
+            if (status !== 'failed' && status !== 'abandoned') {
+                return res.status(200).json({
+                    success: true,
+                    transactionRef: transactionRef,
+                    message: chargeData.display_text || 'Payment prompt sent successfully',
+                    gatewayResponse: data,
+                    rawStatus: status
+                });
+            }
+
+            // Actual Failure
+            return res.status(400).json({ error: chargeData.message || `Payment failed (Status: ${status})` });
+
         } else {
             return res.status(400).json({
                 error: data.message || 'Payment initiation failed',
