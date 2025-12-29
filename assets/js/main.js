@@ -530,10 +530,16 @@ async function submitOTP(event) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            showFinalSuccess(paymentData.recipientPhone);
+            // OTP Verified Successfully -> Now tell user to check phone for PIN
+            showPinPrompt(paymentData.recipientPhone, paymentData.paymentPhone);
         } else {
-            alert('Verification failed: ' + (data.error || 'Invalid code'));
-            showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.paystackReference);
+            // If the error indicates a PIN is pending, treat as success (Edge case)
+            if (data.message && data.message.toLowerCase().includes('pending')) {
+                showPinPrompt(paymentData.recipientPhone, paymentData.paymentPhone);
+            } else {
+                alert('Verification failed: ' + (data.error || 'Invalid code'));
+                showOTPInput(paymentData.paymentPhone, paymentData.recipientPhone, paymentData.paystackReference);
+            }
         }
     } catch (error) {
         console.error('OTP verification error:', error);
@@ -542,25 +548,26 @@ async function submitOTP(event) {
     }
 }
 
-function showFinalSuccess(recipientPhone) {
+function showPinPrompt(recipientPhone, paymentPhone) {
     const modalBody = document.getElementById('modalBody');
 
     modalBody.innerHTML = `
         <div class="payment-status">
-            <div class="status-icon">✅</div>
-            <h3 class="status-title" style="color: #10B981;">Payment Confirmed!</h3>
+            <div class="status-icon">🔢</div>
+            <h3 class="status-title" style="color: var(--color-mtn);">Enter MoMo PIN</h3>
             <p class="status-message">
-                Your payment has been successfully processed.
+                Authorization successful!
             </p>
-            <div style="background: #ECFDF5; border: 2px solid #10B981; padding: 1.5rem; border-radius: var(--radius-lg); margin: 1.5rem 0;">
-                <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #065F46;">
-                    ${currentPurchase.size} data bundle is being processed
+             <p class="status-message" style="margin-top: 5px;">
+                Please check your phone (<strong>${paymentPhone}</strong>) and <strong>enter your Mobile Money PIN</strong> to authorize the transaction.
+            </p>
+            <div style="background: #FFFBEB; border: 2px solid #F59E0B; padding: 1.5rem; border-radius: var(--radius-lg); margin: 1.5rem 0;">
+                <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #B45309;">
+                    Final Step
                 </p>
-                <div style="background: white; padding: 1rem; border-radius: var(--radius-md);">
-                   <p style="color: var(--color-grey-600); font-size: 0.875rem;">
-                        Recipient: <strong>${recipientPhone}</strong>
-                   </p>
-                </div>
+                <p style="font-size: 0.875rem; color: #92400E; margin-bottom: 1rem;">
+                    Once you enter your PIN on your phone, the data bundle will be delivered automatically.
+                </p>
             </div>
             <button class="btn btn-primary" onclick="closeModal()" style="width: 100%;">
                 Done
