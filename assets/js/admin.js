@@ -8,60 +8,10 @@ const networkNames = {
 };
 
 // ===================================
-// MOCK DATA FOR DEMO
+// REAL-TIME DATA STORAGE
 // ===================================
-let transactions = [
-    {
-        id: 'TXN001',
-        date: new Date(),
-        phone: '0241234567',
-        network: 'mtn',
-        bundle: '5GB',
-        paymentMethod: 'MTN MoMo',
-        amount: 27,
-        status: 'successful'
-    },
-    {
-        id: 'TXN002',
-        date: new Date(Date.now() - 300000),
-        phone: '0557654321',
-        network: 'airteltigo',
-        bundle: '10GB',
-        paymentMethod: 'AirtelTigo Money',
-        amount: 50,
-        status: 'pending'
-    },
-    {
-        id: 'TXN003',
-        date: new Date(Date.now() - 600000),
-        phone: '0201112233',
-        network: 'mtn-afa',
-        bundle: '20GB',
-        paymentMethod: 'MTN MoMo',
-        amount: 90,
-        status: 'successful'
-    },
-    {
-        id: 'TXN004',
-        date: new Date(Date.now() - 900000),
-        phone: '0245556677',
-        network: 'mtn',
-        bundle: '2GB',
-        paymentMethod: 'MTN MoMo',
-        amount: 11.50,
-        status: 'failed'
-    },
-    {
-        id: 'TXN005',
-        date: new Date(Date.now() - 1200000),
-        phone: '0558889900',
-        network: 'airteltigo',
-        bundle: '15GB',
-        paymentMethod: 'AirtelTigo Money',
-        amount: 72,
-        status: 'successful'
-    }
-];
+// Transactions are now loaded from API in real-time
+let transactions = [];
 
 // ===================================
 // NAVIGATION
@@ -310,7 +260,12 @@ function exportTransactions() {
 
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
-        window.location.href = 'index.html';
+        // Clear session
+        sessionStorage.removeItem('adminAuthenticated');
+        sessionStorage.removeItem('adminLoginTime');
+
+        // Redirect to login page
+        window.location.href = 'admin-login.html';
     }
 }
 
@@ -370,69 +325,74 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Load initial dashboard
-    loadDashboard();
-    fetchRealOrders(); // Fetch real data
+    // Load real-time data immediately
+    console.log('🔄 Loading real-time data...');
+    fetchRealOrders().then(() => {
+        loadDashboard();
+    });
 
-    // Auto-refresh pending orders every 30 seconds
+    // Auto-refresh orders every 10 seconds for real-time updates
     setInterval(() => {
-        fetchRealOrders(); // Poll for new orders
-        const currentSection = document.querySelector('.admin-section.active');
-        if (currentSection && currentSection.id === 'pending-section') {
-            loadPendingOrders();
-        }
-        updateStats(); // Update stats badge
-    }, 30000); // 30 seconds
+        console.log('🔄 Auto-refreshing data...');
+        fetchRealOrders();
+    }, 10000); // 10 seconds for more real-time feel
 });
 
 // ===================================
-// DATA FETCHING
+// DATA FETCHING - REAL-TIME
 // ===================================
 async function fetchRealOrders() {
     try {
         const response = await fetch('/api/orders');
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.log('API not available, using local data only');
+            return;
+        }
 
         const data = await response.json();
-        if (data.success && data.orders) {
-            let hasNew = false;
-            data.orders.forEach(order => {
-                const exists = transactions.some(t => t.id === order.id);
-                if (!exists) {
-                    // Parse amount if it's the 12-digit string
-                    let amt = parseFloat(order.amount);
-                    if (order.amount && typeof order.amount === 'string' && order.amount.length === 12) {
-                        amt = amt / 100;
-                    }
-
-                    transactions.unshift({
-                        id: order.id,
-                        date: new Date(order.timestamp || Date.now()),
-                        phone: order.recipientPhone || order.paymentPhone || 'Unknown',
-                        network: order.network,
-                        bundle: order.bundle,
-                        paymentMethod: 'Mobile Money',
-                        amount: amt || 0,
-                        status: order.status === 'paid' ? 'successful' : order.status
-                    });
-                    hasNew = true;
+        if (data.success && data.orders && data.orders.length > 0) {
+            // Replace transactions with fresh data from API
+            const apiTransactions = data.orders.map(order => {
+                // Parse amount if it's the 12-digit string
+                let amt = parseFloat(order.amount);
+                if (order.amount && typeof order.amount === 'string' && order.amount.length === 12) {
+                    amt = amt / 100;
                 }
+
+                return {
+                    id: order.id,
+                    date: new Date(order.timestamp || Date.now()),
+                    phone: order.recipientPhone || order.paymentPhone || 'Unknown',
+                    network: order.network || 'mtn',
+                    bundle: order.bundle || 'Unknown Bundle',
+                    paymentMethod: 'Mobile Money',
+                    amount: amt || 0,
+                    status: order.status === 'paid' ? 'successful' : (order.status || 'pending')
+                };
             });
 
-            if (hasNew) {
-                // Refresh current view if needed
-                updateStats();
-                const currentSection = document.querySelector('.admin-section.active');
-                if (currentSection) {
-                    const sectionName = currentSection.id.replace('-section', '');
-                    if (sectionName === 'dashboard') loadDashboard();
-                    if (sectionName === 'transactions') loadAllTransactions();
-                    if (sectionName === 'pending') loadPendingOrders();
-                }
+            // Sort by date (newest first)
+            apiTransactions.sort((a, b) => b.date - a.date);
+
+            // Update transactions array
+            transactions = apiTransactions;
+
+            // Refresh current view
+            updateStats();
+            const currentSection = document.querySelector('.admin-section.active');
+            if (currentSection) {
+                const sectionName = currentSection.id.replace('-section', '');
+                if (sectionName === 'dashboard') loadDashboard();
+                if (sectionName === 'transactions') loadAllTransactions();
+                if (sectionName === 'pending') loadPendingOrders();
             }
+
+            console.log(`✅ Loaded ${transactions.length} orders from API`);
+        } else {
+            console.log('No orders found in API');
         }
     } catch (e) {
-        console.log("Local API not available or empty");
+        console.log("API not available:", e.message);
     }
 }
 

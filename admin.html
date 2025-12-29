@@ -225,6 +225,31 @@
         </section>
     </main>
 
+    <!-- Authentication Check -->
+    <script>
+        // Check if user is authenticated
+        const isAuthenticated = sessionStorage.getItem('adminAuthenticated');
+        const loginTime = sessionStorage.getItem('adminLoginTime');
+
+        // Session expires after 8 hours
+        const SESSION_DURATION = 8 * 60 * 60 * 1000;
+
+        if (!isAuthenticated || !loginTime) {
+            // Not authenticated, redirect to login
+            window.location.href = 'admin-login.html';
+        } else {
+            // Check if session has expired
+            const currentTime = Date.now();
+            if (currentTime - parseInt(loginTime) > SESSION_DURATION) {
+                // Session expired
+                sessionStorage.removeItem('adminAuthenticated');
+                sessionStorage.removeItem('adminLoginTime');
+                alert('Your session has expired. Please login again.');
+                window.location.href = 'admin-login.html';
+            }
+        }
+    </script>
+
     <script src="assets/js/admin.js"></script>
 </body>
 
