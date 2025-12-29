@@ -368,7 +368,7 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
 
             // Check if OTP is required immediately
             if (data.requireOtp) {
-                showOTPInput(paymentPhone, recipientPhone, data.transactionRef);
+                showOTPInput(paymentPhone, recipientPhone, data.transactionRef, data.message);
             } else {
                 // Show processing screen - STK Push sent
                 showPaymentSuccess(recipientPhone);
@@ -447,28 +447,31 @@ function switchToOTPInput() {
     }
 }
 
-function showOTPInput(paymentPhone, recipientPhone, reference) {
+function showOTPInput(paymentPhone, recipientPhone, reference, customMessage) {
     const modalBody = document.getElementById('modalBody');
+
+    // Default message if Paystack didn't send one
+    const displayMessage = customMessage || `A verification code has been sent to <strong>${paymentPhone}</strong>.`;
 
     modalBody.innerHTML = `
         <div class="payment-status">
             <div class="status-icon">📱</div>
-            <h3 class="status-title">Enter SMS Code</h3>
-            <p class="status-message">
-                A verification code has been sent to <strong>${paymentPhone}</strong>.
+            <h3 class="status-title">Authentication Required</h3>
+            <p class="status-message" style="color: var(--color-grey-800); font-weight: 500;">
+                ${displayMessage}
             </p>
             <p class="status-message" style="margin-top: 0.5rem; font-size: 0.875rem;">
-                Please enter the code below to complete the payment.
+                Please follow the instructions above and enter the code/token below.
             </p>
             
             <form onsubmit="submitOTP(event)" style="margin-top: 1.5rem;">
                 <div class="form-group">
-                    <label class="form-label">OTP Code</label>
+                    <label class="form-label">OTP / Token / Voucher Code</label>
                     <input 
                         type="text" 
                         class="form-input" 
                         id="otpCode" 
-                        placeholder="Enter 6-digit code" 
+                        placeholder="Enter Code" 
                         required 
                         maxlength="10"
                         style="text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem;"
@@ -476,12 +479,12 @@ function showOTPInput(paymentPhone, recipientPhone, reference) {
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
-                    Complete Payment
+                    Authorize Payment
                 </button>
             </form>
             
             <p style="margin-top: 1rem; font-size: 0.875rem; color: var(--color-grey-600);">
-                Didn't receive code? <a href="#" onclick="resendOTP(event)" style="color: var(--color-mtn); font-weight: 600;">Resend OTP</a>
+                Didn't receive code? <a href="#" onclick="resendOTP(event)" style="color: var(--color-mtn); font-weight: 600;">Restart Transaction</a>
             </p>
         </div>
     `;
@@ -490,7 +493,9 @@ function showOTPInput(paymentPhone, recipientPhone, reference) {
     window.currentPaymentData = {
         paymentPhone: paymentPhone,
         recipientPhone: recipientPhone,
-        paystackReference: reference
+        paystackReference: reference,
+        // preserved other fields if needed for retry
+        paymentMethod: window.currentPaymentData?.paymentMethod
     };
 }
 
