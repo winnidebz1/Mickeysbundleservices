@@ -467,8 +467,8 @@ function resendOTP(event) {
             </div>
         `;
 
-        // Re-initiate the payment flow (creates new charge = new OTP/Prompt)
-        initiateMoolrePayment(data.paymentPhone, data.recipientPhone, data.paymentMethod);
+        // Re-initiate the payment flow
+        initiatePayment(data.paymentPhone, data.recipientPhone, data.paymentMethod, data.gateway || 'paystack');
     } else {
         alert('Session expired. Please start the purchase again.');
         closeModal();
