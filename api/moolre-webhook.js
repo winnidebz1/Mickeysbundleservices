@@ -13,25 +13,47 @@ export default async function handler(req, res) {
 
         if (event.status === 'success' && event.data && event.data.txstatus === '1') {
             const externalRef = event.data.externalref;
+            const description = event.data.description || '';
 
             console.log(`✅ Moolre Payment Successful: ${externalRef}`);
 
-            // TODO: Here you would parse the externalRef or look up the transaction in your DB
-            // to find the recipientPhone and bundleSize.
-            // Since we are stateless here, we can't easily deliver without a DB lookup.
-            // HOWEVER, we can extract it if we encoded it in the ref, OR (better) just log strictly for now.
-            // Unlike Paystack metadata, Moolre relies on us tracking the 'externalref'.
+            // Extract recipient phone and bundle from description
+            // Format: "5GB Data Bundle for 0241234567"
+            let recipientPhone = 'Unknown';
+            let bundle = 'Unknown Bundle';
 
-            // Assuming we stored the order in a DB, we would fetch it here.
+            const phoneMatch = description.match(/for (\d{10})/);
+            const bundleMatch = description.match(/^(.+?) Data Bundle/);
 
-            /*
+            if (phoneMatch) recipientPhone = phoneMatch[1];
+            if (bundleMatch) bundle = bundleMatch[1];
+
+            // Build order object
             const order = {
                 id: externalRef,
-                network: 'Moolre MoMo',
-                status: 'Completed'
+                recipientPhone: recipientPhone,
+                paymentPhone: event.data.payer || recipientPhone,
+                bundle: bundle,
+                amount: parseFloat(event.data.amount) || 0,
+                network: event.data.channel || 'Mobile Money',
+                timestamp: new Date().toISOString(),
+                status: 'pending'
             };
-            await deliverBundle(order);
-            */
+
+            // Sync with local DB / Admin Dashboard
+            try {
+                const protocol = req.headers['x-forwarded-proto'] || 'http';
+                const host = req.headers.host;
+                const ordersUrl = `${protocol}://${host}/api/orders`;
+                await fetch(ordersUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'add', order })
+                });
+                console.log('Order synced to admin dashboard');
+            } catch (e) {
+                console.warn("Internal sync failed", e.message);
+            }
 
             return res.status(200).json({ status: 'ok' });
         }

@@ -1,4 +1,13 @@
 // ===================================
+// NETWORK NAMES MAPPING
+// ===================================
+const networkNames = {
+    'mtn': 'MTN',
+    'mtn-afa': 'MTN AFA',
+    'airteltigo': 'AirtelTigo'
+};
+
+// ===================================
 // MOCK DATA FOR DEMO
 // ===================================
 let transactions = [
@@ -202,7 +211,7 @@ function loadPendingOrders() {
             </div>
             <div class="pending-details">
                 <div class="detail-row">
-                    <span class="detail-label">Customer:</span>
+                    <span class="detail-label">Recipient Phone:</span>
                     <span class="detail-value">${txn.phone}</span>
                 </div>
                 <div class="detail-row">
@@ -320,6 +329,47 @@ document.addEventListener('DOMContentLoaded', function () {
         filterStatus.addEventListener('change', filterTransactions);
     }
 
+    // Mobile menu functionality
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('adminSidebar');
+    const sidebarClose = document.getElementById('sidebarClose');
+
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', function () {
+            sidebar.classList.toggle('active');
+            mobileMenuToggle.classList.toggle('active');
+        });
+    }
+
+    if (sidebarClose) {
+        sidebarClose.addEventListener('click', function () {
+            sidebar.classList.remove('active');
+            mobileMenuToggle.classList.remove('active');
+        });
+    }
+
+    // Close sidebar when clicking on nav items on mobile
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', function () {
+            if (window.innerWidth <= 968) {
+                sidebar.classList.remove('active');
+                mobileMenuToggle.classList.remove('active');
+            }
+        });
+    });
+
+    // Close sidebar when clicking overlay (outside sidebar)
+    document.addEventListener('click', function (e) {
+        if (window.innerWidth <= 968 &&
+            sidebar.classList.contains('active') &&
+            !sidebar.contains(e.target) &&
+            !mobileMenuToggle.contains(e.target)) {
+            sidebar.classList.remove('active');
+            mobileMenuToggle.classList.remove('active');
+        }
+    });
+
     // Load initial dashboard
     loadDashboard();
     fetchRealOrders(); // Fetch real data
@@ -358,7 +408,7 @@ async function fetchRealOrders() {
                     transactions.unshift({
                         id: order.id,
                         date: new Date(order.timestamp || Date.now()),
-                        phone: order.paymentPhone,
+                        phone: order.recipientPhone || order.paymentPhone || 'Unknown',
                         network: order.network,
                         bundle: order.bundle,
                         paymentMethod: 'Mobile Money',

@@ -60,12 +60,13 @@ export default async function handler(req, res) {
             // Build order object
             const order = {
                 id: reference,
-                recipientPhone: customFields.find(f => f.variable_name === 'recipient_phone')?.value || data.customer?.phone,
+                recipientPhone: customFields.find(f => f.variable_name === 'recipient_phone')?.value || data.customer?.phone || 'Unknown',
+                paymentPhone: data.customer?.phone || 'Unknown',
                 bundle: customFields.find(f => f.variable_name === 'bundle')?.value || 'Unknown Bundle',
                 amount: data.amount / 100, // Convert pesewas back to GHS
-                network: 'Mobile Money',
-                date: new Date().toISOString(),
-                status: 'Completed'
+                network: customFields.find(f => f.variable_name === 'network')?.value || 'Mobile Money',
+                timestamp: new Date().toISOString(),
+                status: 'pending'
             };
 
             console.log('✅ Payment Successful:', reference);
