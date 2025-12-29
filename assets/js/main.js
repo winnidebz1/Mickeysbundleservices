@@ -294,6 +294,32 @@ async function initiatePayment(paymentPhone, recipientPhone, paymentMethod, gate
                 showPinPrompt(recipientPhone, paymentPhone);
             }
         } else {
+            // AUTO FALLBACK LOGIC
+            // If Moolre fails with "not supported", try Paystack automatically
+            const errorMessage = (data.error || '').toLowerCase();
+            if (gateway === 'moolre' && (errorMessage.includes('not support') || errorMessage.includes('channel'))) {
+                console.warn('Moolre failed/unsupported. Failing over to Paystack...');
+
+                // Show status update to user
+                const modalBody = document.getElementById('modalBody');
+                if (modalBody) {
+                    modalBody.innerHTML = `
+                        <div class="payment-status">
+                            <div class="loading-spinner"></div>
+                            <h3 class="status-title" style="color: #ea580c;">Switching Gateway</h3>
+                            <p class="status-message">Moolre is unavailable for this network.</p>
+                            <p class="status-message" style="font-size: 0.875rem;">Retrying via <strong>Paystack</strong>...</p>
+                        </div>
+                    `;
+                }
+
+                // Retry with Paystack
+                setTimeout(() => {
+                    initiatePayment(paymentPhone, recipientPhone, paymentMethod, 'paystack');
+                }, 1500); // 1.5s delay so they see the message
+                return;
+            }
+
             alert(`Payment failed (${gateway}): ` + (data.error || 'Unknown error'));
             closeModal();
         }
