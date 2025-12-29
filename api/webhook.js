@@ -27,6 +27,8 @@ async function deliverBundle(order) {
 }
 
 export default async function handler(req, res) {
+    console.log('🔔 Webhook received:', req.method);
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -35,7 +37,7 @@ export default async function handler(req, res) {
         // PER PAYSTACK DOCS: Verify Signature
         const secret = process.env.PAYSTACK_SECRET_KEY;
         if (!secret) {
-            console.error('PAYSTACK_SECRET_KEY not set');
+            console.error('❌ PAYSTACK_SECRET_KEY not set');
             return res.status(500).send('Server Config Error');
         }
 
@@ -44,14 +46,18 @@ export default async function handler(req, res) {
             .digest('hex');
 
         if (hash !== req.headers['x-paystack-signature']) {
+            console.error('❌ Invalid webhook signature');
             return res.status(400).send('Invalid Signature');
         }
 
         const event = req.body;
+        console.log('📨 Webhook event:', event.event);
 
         if (event.event === 'charge.success') {
             const data = event.data;
             const reference = data.reference;
+
+            console.log('💰 Processing successful charge:', reference);
 
             // Extract metadata if available
             const metadata = data.metadata || {};
@@ -70,6 +76,7 @@ export default async function handler(req, res) {
             };
 
             console.log('✅ Payment Successful:', reference);
+            console.log('📦 Order created:', order);
 
             // Deliver Bundle
             await deliverBundle(order);
@@ -79,17 +86,25 @@ export default async function handler(req, res) {
                 const protocol = req.headers['x-forwarded-proto'] || 'http';
                 const host = req.headers.host;
                 const ordersUrl = `${protocol}://${host}/api/orders`;
-                await fetch(ordersUrl, {
+
+                console.log('🔄 Syncing order to:', ordersUrl);
+
+                const syncResponse = await fetch(ordersUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'add', order })
                 });
-            } catch (e) { console.warn("Internal sync failed", e.message); }
+
+                const syncResult = await syncResponse.json();
+                console.log('✅ Order sync response:', syncResult);
+            } catch (e) {
+                console.error('❌ Internal sync failed:', e.message);
+            }
         }
 
         res.status(200).send('Webhook received');
     } catch (error) {
-        console.error('Webhook Error:', error);
+        console.error('❌ Webhook Error:', error);
         res.status(500).json({ error: error.message });
     }
 }

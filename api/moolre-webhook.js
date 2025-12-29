@@ -1,10 +1,12 @@
 export default async function handler(req, res) {
+    console.log('🔔 Moolre Webhook received:', req.method);
+
     if (req.method !== 'POST') {
         return res.status(405).send('Method Not Allowed');
     }
 
     try {
-        console.log('Received Moolre Webhook:', JSON.stringify(req.body));
+        console.log('📨 Received Moolre Webhook:', JSON.stringify(req.body));
 
         // Moolre payload structure
         // { "status": "success", "data": { "txstatus": "1", "externalref": "..." } }
@@ -16,6 +18,7 @@ export default async function handler(req, res) {
             const description = event.data.description || '';
 
             console.log(`✅ Moolre Payment Successful: ${externalRef}`);
+            console.log(`📝 Description: ${description}`);
 
             // Extract recipient phone and bundle from description
             // Format: "5GB Data Bundle for 0241234567"
@@ -27,6 +30,8 @@ export default async function handler(req, res) {
 
             if (phoneMatch) recipientPhone = phoneMatch[1];
             if (bundleMatch) bundle = bundleMatch[1];
+
+            console.log(`📞 Recipient: ${recipientPhone}, 📦 Bundle: ${bundle}`);
 
             // Build order object
             const order = {
@@ -40,27 +45,35 @@ export default async function handler(req, res) {
                 status: 'pending'
             };
 
+            console.log('📦 Order created:', order);
+
             // Sync with local DB / Admin Dashboard
             try {
                 const protocol = req.headers['x-forwarded-proto'] || 'http';
                 const host = req.headers.host;
                 const ordersUrl = `${protocol}://${host}/api/orders`;
-                await fetch(ordersUrl, {
+
+                console.log('🔄 Syncing order to:', ordersUrl);
+
+                const syncResponse = await fetch(ordersUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'add', order })
                 });
-                console.log('Order synced to admin dashboard');
+
+                const syncResult = await syncResponse.json();
+                console.log('✅ Order synced to admin dashboard:', syncResult);
             } catch (e) {
-                console.warn("Internal sync failed", e.message);
+                console.error('❌ Internal sync failed:', e.message);
             }
 
             return res.status(200).json({ status: 'ok' });
         }
 
+        console.log('⚠️ Webhook processed but no action taken');
         res.status(200).send('Webhook processed');
     } catch (error) {
-        console.error('Moolre Webhook Error:', error);
+        console.error('❌ Moolre Webhook Error:', error);
         res.status(500).json({ error: error.message });
     }
 }
