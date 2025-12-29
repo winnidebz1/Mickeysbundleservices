@@ -155,9 +155,6 @@ function showPurchaseModal() {
             </div>
         </div>
         
-        <form class="purchase-form" onsubmit="processPurchase(event)">
-            <div class="form-group">
-                <label class="form-label">Who is receiving the data?</label>
         <form id="paymentForm" onsubmit="handlePaymentSubmit(event)">
             <div class="form-group">
                 <label class="form-label">Recipient Number</label>
@@ -178,18 +175,65 @@ function showPurchaseModal() {
                 </select>
             </div>
             
+            <div class="form-group" style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px;">
+                <label class="form-label" style="color: #166534; margin-bottom: 5px;">Payment Gateway</label>
+                <div style="display: flex; gap: 15px;">
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="radio" name="gateway" value="paystack" checked> 
+                        <span style="font-weight: 600; color: #166534;">Paystack</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                        <input type="radio" name="gateway" value="moolre"> 
+                        <span style="font-weight: 600; color: #166534;">Moolre (Beta)</span>
+                    </label>
+                </div>
             </div>
-            
-            <button type="submit" class="btn btn-primary" style="width: 100%;">
-                Proceed to Payment
+
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                Pay GH₵ ${currentPurchase.price.toFixed(2)}
             </button>
         </form>
     `;
 
     modal.classList.add('active');
+
+    // Auto-fill recipient number logic (optional)
+    const paymentInput = document.getElementById('paymentNumber');
+    paymentInput.addEventListener('input', (e) => {
+        // We could auto-copy to recipient if empty, but keeping it simple for now
+    });
 }
 
+function handlePaymentSubmit(event) {
+    event.preventDefault();
+    const recipientNumber = document.getElementById('recipientNumber').value;
+    const paymentNumber = document.getElementById('paymentNumber').value;
+    const paymentMethod = document.getElementById('paymentMethod').value;
+    const gatewayInput = document.querySelector('input[name="gateway"]:checked');
+    const gateway = gatewayInput ? gatewayInput.value : 'paystack';
 
+    if (!paymentNumber || !recipientNumber) {
+        alert('Please fill in all details.');
+        return;
+    }
+
+    if (paymentNumber.length !== 10 || recipientNumber.length !== 10) {
+        alert('Please enter valid 10-digit phone numbers starting with 0.');
+        return;
+    }
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="payment-status">
+            <div class="loading-spinner"></div>
+            <p style="color: var(--color-grey-600); font-size: 0.875rem; margin-top: 1rem;">
+                Initiating payment via <strong>${gateway.toUpperCase()}</strong>...
+            </p>
+        </div>
+    `;
+
+    initiatePayment(paymentNumber, recipientNumber, paymentMethod, gateway);
+}
 
 function closeModal() {
     const modal = document.getElementById('purchaseModal');
