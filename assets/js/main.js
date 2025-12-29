@@ -158,53 +158,26 @@ function showPurchaseModal() {
         <form class="purchase-form" onsubmit="processPurchase(event)">
             <div class="form-group">
                 <label class="form-label">Who is receiving the data?</label>
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="radio" name="recipientType" value="self" id="recipientSelf" onchange="toggleRecipientField()" checked>
-                        <span>For myself</span>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                        <input type="radio" name="recipientType" value="other" id="recipientOther" onchange="toggleRecipientField()">
-                        <span>For someone else</span>
-                    </label>
-                </div>
+        <form id="paymentForm" onsubmit="handlePaymentSubmit(event)">
+            <div class="form-group">
+                <label class="form-label">Recipient Number</label>
+                <input type="tel" class="form-input" id="recipientNumber" required placeholder="05XXXXXXXX" pattern="[0-9]{10}" maxlength="10">
             </div>
 
             <div class="form-group">
-                <label class="form-label">Payment Phone Number</label>
-                <input type="tel" class="form-input" id="paymentNumber" placeholder="0XX XXX XXXX" required pattern="[0-9]{10}" maxlength="10" oninput="syncRecipientNumber()">
-                <small style="color: var(--color-grey-600); font-size: 0.875rem;">Number that will make the payment</small>
-            </div>
-            
-            <div class="form-group" id="recipientNumberGroup" style="display: none;">
-                <label class="form-label">Recipient Phone Number</label>
-                <input type="tel" class="form-input" id="recipientNumber" placeholder="0XX XXX XXXX" pattern="[0-9]{10}" maxlength="10">
-                <small style="color: var(--color-grey-600); font-size: 0.875rem;">Number that will receive the data</small>
+                <label class="form-label">Momo Number for Payment</label>
+                <input type="tel" class="form-input" id="paymentNumber" required placeholder="05XXXXXXXX" pattern="[0-9]{10}" maxlength="10">
             </div>
             
             <div class="form-group">
                 <label class="form-label">Payment Method</label>
-                <select class="form-select" id="paymentMethod" required>
-                    <option value="">Select payment method</option>
+                <select class="form-select" id="paymentMethod">
                     <option value="mtn-momo">MTN Mobile Money</option>
                     <option value="telecel-cash">Telecel Cash</option>
                     <option value="airteltigo-money">AirtelTigo Money</option>
                 </select>
             </div>
             
-            <div class="form-group" style="background: var(--color-grey-50); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem;">
-                <div style="display: flex; align-items: start; gap: 0.5rem;">
-                    <span style="font-size: 1.25rem;">🔒</span>
-                    <div>
-                        <p style="font-size: 0.875rem; color: var(--color-grey-700); margin-bottom: 0.25rem;">
-                            <strong>Security Notice:</strong>
-                        </p>
-                        <p style="font-size: 0.875rem; color: var(--color-grey-600);">
-                            We do not collect or store your MoMo PIN. All payments are securely processed via Moolre. 
-                            PIN entry happens only on your device.
-                        </p>
-                    </div>
-                </div>
             </div>
             
             <button type="submit" class="btn btn-primary" style="width: 100%;">
@@ -216,30 +189,7 @@ function showPurchaseModal() {
     modal.classList.add('active');
 }
 
-function toggleRecipientField() {
-    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
-    const recipientNumberGroup = document.getElementById('recipientNumberGroup');
-    const recipientNumberInput = document.getElementById('recipientNumber');
-    const paymentNumber = document.getElementById('paymentNumber').value;
 
-    if (recipientType === 'other') {
-        recipientNumberGroup.style.display = 'block';
-        recipientNumberInput.required = true;
-        recipientNumberInput.value = '';
-    } else {
-        recipientNumberGroup.style.display = 'none';
-        recipientNumberInput.required = false;
-        recipientNumberInput.value = paymentNumber;
-    }
-}
-
-function syncRecipientNumber() {
-    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
-    if (recipientType === 'self') {
-        const paymentNumber = document.getElementById('paymentNumber').value;
-        document.getElementById('recipientNumber').value = paymentNumber;
-    }
-}
 
 function closeModal() {
     const modal = document.getElementById('purchaseModal');
@@ -255,81 +205,7 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// ===================================
-// PAYMENT PROCESSING
-// ===================================
-function processPurchase(event) {
-    event.preventDefault();
-
-    const paymentNumber = document.getElementById('paymentNumber').value;
-    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
-    const recipientNumber = recipientType === 'self' ? paymentNumber : document.getElementById('recipientNumber').value;
-    const paymentMethod = document.getElementById('paymentMethod').value;
-
-    if (!paymentNumber || !paymentMethod) {
-        alert('Please fill in all required fields');
-        return;
-    }
-
-    if (recipientType === 'other' && !recipientNumber) {
-        alert('Please enter the recipient phone number');
-        return;
-    }
-
-    // Validate phone number format
-    if (!/^0[0-9]{9}$/.test(paymentNumber)) {
-        alert('Please enter a valid 10-digit payment phone number starting with 0');
-        return;
-    }
-
-    if (recipientType === 'other' && !/^0[0-9]{9}$/.test(recipientNumber)) {
-        alert('Please enter a valid 10-digit recipient phone number starting with 0');
-        return;
-    }
-
-    // Show payment processing screen
-    showPaymentProcessing(paymentNumber, recipientNumber, paymentMethod);
-}
-
-function showPaymentProcessing(paymentNumber, recipientNumber, paymentMethod) {
-    const modalBody = document.getElementById('modalBody');
-
-    const paymentMethodNames = {
-        'mtn-momo': 'MTN Mobile Money',
-        'telecel-cash': 'Telecel Cash',
-        'airteltigo-money': 'AirtelTigo Money'
-    };
-
-    const isSameNumber = paymentNumber === recipientNumber;
-
-    modalBody.innerHTML = `
-        <div class="payment-status">
-            <div class="status-icon">📱</div>
-            <h3 class="status-title">Payment Request Sent</h3>
-            <p class="status-message">
-                A payment prompt has been sent to <strong>${paymentNumber}</strong> via ${paymentMethodNames[paymentMethod]}.
-            </p>
-            ${!isSameNumber ? `<p class="status-message" style="margin-top: 0.5rem;">Data will be delivered to <strong>${recipientNumber}</strong></p>` : ''}
-            <div style="background: var(--color-grey-50); padding: 1.5rem; border-radius: var(--radius-lg); margin: 1.5rem 0;">
-                <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--color-black);">
-                    Please enter your Mobile Money PIN on your phone to approve payment.
-                </p>
-                <p style="font-size: 0.875rem; color: var(--color-grey-600);">
-                    ⚠️ Do NOT enter your PIN on this website. PIN entry happens only on your device.
-                </p>
-            </div>
-            <div class="loading-spinner"></div>
-            <p style="color: var(--color-grey-600); font-size: 0.875rem; margin-top: 1rem;">
-                Waiting for payment confirmation...
-            </p>
-        </div>
-    `;
-
-    // Initiate real payment
-    initiateMoolrePayment(paymentNumber, recipientNumber, paymentMethod);
-}
-
-async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod) {
+async function initiatePayment(paymentPhone, recipientPhone, paymentMethod, gateway) {
     // Map dropdown values to backend codes
     const paymentMethodMap = {
         'mtn-momo': 'mtn',
@@ -337,8 +213,10 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
         'airteltigo-money': 'airteltigo'
     };
 
+    const endpoint = gateway === 'moolre' ? '/api/create-moolre-payment' : '/api/create-payment';
+
     try {
-        const response = await fetch('/api/create-payment', {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -355,26 +233,24 @@ async function initiateMoolrePayment(paymentPhone, recipientPhone, paymentMethod
         const data = await response.json();
 
         if (response.ok) {
-            // Payment initiated successfully
-            console.log('Payment initiated:', data);
+            console.log(`${gateway} Payment initiated:`, data);
 
-            // Store Reference and Details for OTP/Retry
             window.currentPaymentData = {
                 paymentPhone: paymentPhone,
                 recipientPhone: recipientPhone,
                 paymentMethod: paymentMethod,
+                gateway: gateway,
                 paystackReference: data.transactionRef || data.paystackReference
             };
 
-            // Check if OTP is required immediately
+            // Unified Success Handler
             if (data.requireOtp) {
                 showOTPInput(paymentPhone, recipientPhone, data.transactionRef, data.message);
             } else {
-                // Show processing screen - STK Push sent
-                showPaymentSuccess(recipientPhone);
+                showPinPrompt(recipientPhone, paymentPhone);
             }
         } else {
-            alert('Payment execution failed: ' + (data.error || 'Unknown error'));
+            alert(`Payment failed (${gateway}): ` + (data.error || 'Unknown error'));
             closeModal();
         }
     } catch (error) {
