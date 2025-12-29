@@ -21,6 +21,10 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: 'Server configuration error: Missing Moolre Keys' });
         }
 
+        if (MOOLRE_API_KEY.includes('your_') || MOOLRE_ACCOUNT_NUMBER.includes('your_')) {
+            return res.status(500).json({ error: 'Please update .env.local with your REAL Moolre keys.' });
+        }
+
         // Map network to Moolre codes
         const networkMap = {
             'mtn': 'mtn',
