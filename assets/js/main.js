@@ -394,28 +394,24 @@ function showPaymentSuccess(recipientPhone) {
     modalBody.innerHTML = `
         <div class="payment-status">
             <div class="status-icon">🚀</div>
-            <h3 class="status-title" style="color: var(--color-mtn);">Payment Prompt Sent!</h3>
+            <h3 class="status-title" style="color: var(--color-mtn);">Authorize Payment</h3>
             <p class="status-message">
-                Please check your phone (<strong>${document.getElementById('paymentNumber').value}</strong>) and approve the transaction.
+                A prompt has been sent to <strong>${document.getElementById('paymentNumber').value}</strong>.
             </p>
             <div style="background: #FFFBEB; border: 2px solid #F59E0B; padding: 1.5rem; border-radius: var(--radius-lg); margin: 1.5rem 0;">
-                <p style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #B45309;">
-                    Step 1: Approve Payment on Phone
+                <p style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; color: #B45309;">
+                    Step 1: Check your Phone
                 </p>
-                <p style="font-size: 0.875rem; color: #92400E; margin-bottom: 1rem;">
-                    Once you approve, we will automatically receive the confirmation and process your data.
+                <p style="font-size: 1rem; color: #92400E; margin-bottom: 1rem;">
+                    <strong>ENTER YOUR PIN</strong> on the popup to confirm the transaction.
                 </p>
                 <div style="background: white; padding: 1rem; border-radius: var(--radius-md);">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
                         <span style="color: var(--color-grey-600);">Network:</span>
                         <span style="font-weight: 600;">${networkNames[currentPurchase.network]}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                        <span style="color: var(--color-grey-600);">Bundle:</span>
-                        <span style="font-weight: 600;">${currentPurchase.size}</span>
-                    </div>
                     <div style="display: flex; justify-content: space-between;">
-                        <span style="color: var(--color-grey-600);">Amount to Pay:</span>
+                        <span style="color: var(--color-grey-600);">Amount:</span>
                         <span style="font-weight: 700; color: var(--color-mtn);">GH₵ ${currentPurchase.price.toFixed(2)}</span>
                     </div>
                 </div>
@@ -423,10 +419,7 @@ function showPaymentSuccess(recipientPhone) {
             
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 <button class="btn btn-primary" onclick="closeModal()" style="width: 100%;">
-                    I have Approved the Payment
-                </button>
-                <button class="btn" onclick="switchToOTPInput()" style="width: 100%; background: var(--color-grey-200); color: var(--color-grey-800);">
-                    I received a code via SMS instead
+                    I have Entered my PIN
                 </button>
             </div>
         </div>
