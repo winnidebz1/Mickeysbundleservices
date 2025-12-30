@@ -1,6 +1,12 @@
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 
-// Persistent storage using Vercel KV (Redis)
+// Create Redis client using REDIS_URL
+const redis = new Redis({
+    url: process.env.REDIS_URL || process.env.KV_URL,
+    token: process.env.REDIS_TOKEN || process.env.KV_REST_API_TOKEN || ''
+});
+
+// Persistent storage using Redis
 const ORDERS_KEY = 'orders:all';
 
 export default async function handler(req, res) {
@@ -15,8 +21,8 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
         try {
-            // Get all orders from KV storage
-            const orders = await kv.get(ORDERS_KEY) || [];
+            // Get all orders from Redis storage
+            const orders = await redis.get(ORDERS_KEY) || [];
             console.log(`📊 GET /api/orders - Returning ${orders.length} orders`);
 
             return res.status(200).json({
@@ -41,13 +47,13 @@ export default async function handler(req, res) {
 
         try {
             // Get current orders
-            let orders = await kv.get(ORDERS_KEY) || [];
+            let orders = await redis.get(ORDERS_KEY) || [];
 
             if (action === 'complete') {
                 // Mark order as completed (remove from pending)
                 const beforeCount = orders.length;
                 orders = orders.filter(o => o.id !== orderId);
-                await kv.set(ORDERS_KEY, orders);
+                await redis.set(ORDERS_KEY, orders);
 
                 const afterCount = orders.length;
                 console.log(`✅ Order ${orderId} marked as completed. Orders: ${beforeCount} → ${afterCount}`);
@@ -77,7 +83,7 @@ export default async function handler(req, res) {
 
                 // Add order to the beginning of the array
                 orders.unshift(order);
-                await kv.set(ORDERS_KEY, orders);
+                await redis.set(ORDERS_KEY, orders);
 
                 console.log(`✅ Order ${order.id} added. Total orders: ${orders.length}`);
                 console.log(`📦 Order details:`, order);
