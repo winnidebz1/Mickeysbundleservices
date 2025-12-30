@@ -74,15 +74,16 @@ Vercel will automatically add these environment variables:
 ## 💰 Pricing
 
 **Vercel KV Free Tier:**
-- ✅ 256 MB storage
+- ✅ 30 MB storage
 - ✅ 3,000 commands per day
 - ✅ More than enough for your use case
 - ✅ No credit card required
 
 **Your Usage:**
 - Each order: ~1 KB
-- Can store: ~250,000 orders
+- Can store: ~30,000 orders
 - Daily commands: ~100-200 (well within limit)
+- **This is plenty for a bundle reselling business!**
 
 ---
 
